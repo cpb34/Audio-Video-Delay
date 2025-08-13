@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Audio/Video Delay",
-  "version": "2.1.0",
-  "description": "Seamlessly delays audio and DRM-free video",
+  "version": "2.3.0",
+  "description": "Delays audio and video for synchronized playback",
   "permissions": ["storage"],
   "content_scripts": [{ "matches": ["<all_urls>"], "js": ["main.js"], "all_frames": true }],
   "action": { "default_popup": "gui.html" },
