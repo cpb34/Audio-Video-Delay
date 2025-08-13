@@ -8,7 +8,7 @@ Toggle between delaying audio and video by clicking the `Audio/Video` text at th
 ## Installation Guide
 
 ### Chrome Web Store:
-Audio/Video Delay is available on the [Chrome Web Store](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo) and can be installed on Brave, Chrome, Edge, and other Chromium-based browser.
+Audio/Video Delay is available on the [Chrome Web Store](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo) and can be installed on Brave, Chrome, Edge, and any other Chromium-based browser.
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
