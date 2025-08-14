@@ -152,28 +152,71 @@ class Monitor {
 
 class DelayedVideo {
   constructor(video, delay) {
-  this.video = video
-  this.delay = Math.round(delay / 16.67)
+    this.video = video
+    this.originalDelay = delay
+    this.delay = delay
+    this.frameDelay = Math.round(delay / 16.67)
 
-  this.frameCounter = 0
-  this.availableTextures = []
-  this.usedTextures = new Set()
+    this.timingMode = 'frame'
+    this.frameCounter = 0
+    this.lastRAFTime = performance.now()
+    this.rafIntervals = []
+    this.switchedToTime = false
+    
+    this.availableTextures = []
+    this.usedTextures = new Set()
 
-  this.subtitleElements = []
-  this.hiddenSubtitleElements = []
-  this.delayedSubtitleLines = []
+    this.subtitleElements = []
+    this.hiddenSubtitleElements = []
+    this.delayedSubtitleLines = []
 
-  this.visibleTab = !document.hidden
-  this.tabWasHidden = false
-  this.videoEnded = false
-  this.lastFrameShown = false
-  this.restartDelayedVideo = false
+    this.visibleTab = !document.hidden
+    this.tabWasHidden = false
+    this.videoEnded = false
+    this.lastFrameShown = false
+    this.restartDelayedVideo = false
 
-  this.addEventListeners()
-  this.createCanvases()
-  this.determineSubtitlePlayer()
-  this.startDelayedVideo()
-}
+    this.addEventListeners()
+    this.createCanvases()
+    this.determineSubtitlePlayer()
+    this.startDelayedVideo()
+  }
+
+  checkFrameRate(currentTime) {
+    const interval = currentTime - this.lastRAFTime
+    this.lastRAFTime = currentTime
+    
+    if (this.frameCounter > 10 && !this.switchedToTime) {
+      this.rafIntervals.push(interval)
+      
+      if (this.rafIntervals.length > 10) this.rafIntervals.shift()
+      
+      if (this.rafIntervals.length >= 10) {
+        const avgInterval = this.rafIntervals.reduce((a, b) => a + b) / this.rafIntervals.length
+        
+        if (avgInterval < 15) this.switchToTimeMode()
+      }
+    }
+  }
+
+  switchToTimeMode() {
+    if (this.switchedToTime) return
+    
+    this.switchedToTime = true
+    this.timingMode = 'time'
+    this.delay = this.originalDelay
+    
+    this.videoStartTime = performance.now()
+    this.lastDrawnFrameTimestamp = 0
+  }
+
+  getCurrentFPS() {
+    if (this.rafIntervals.length < 5) return 60
+    
+    const avgInterval = this.rafIntervals.reduce((a, b) => a + b) / this.rafIntervals.length
+
+    return Math.round(1000 / avgInterval)
+  }
 
   addEventListeners() {
     this.video.addEventListener('resize', () => { this.updateCanvasDimensions() })
@@ -188,8 +231,12 @@ class DelayedVideo {
     this.visibilityChangeHandler = () => {
       this.visibleTab = !document.hidden
       
-      if (this.visibleTab) this.videoStartTime = performance.now()
-      else this.tabWasHidden = true
+      if (this.visibleTab) {
+        if (this.timingMode === 'time') this.videoStartTime = performance.now()
+        else this.videoStartTime = this.frameCounter
+      } else {
+        this.tabWasHidden = true
+      }
     }
 
     document.addEventListener('visibilitychange', this.visibilityChangeHandler)
@@ -236,9 +283,7 @@ class DelayedVideo {
       this.usedTextures.forEach(texture => this.gl.deleteTexture(texture))
 
       this.availableTextures = []
-      
       this.usedTextures.clear()
-      
       this.createReusableTextures()
     }
 
@@ -296,7 +341,6 @@ class DelayedVideo {
 
       if (framePromise) {
         const frame = framePromise
-        
         try { this.drawWebGLFrame(frame.texture) } catch {}
       }
     }
@@ -375,9 +419,7 @@ class DelayedVideo {
   getReusableTexture() {
     if (this.availableTextures.length > 0) {
       const texture = this.availableTextures.pop()
-
       this.usedTextures.add(texture)
-
       return texture
     }
     
@@ -391,7 +433,6 @@ class DelayedVideo {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
     
     this.usedTextures.add(texture)
-
     return texture
   }
 
@@ -413,7 +454,6 @@ class DelayedVideo {
 
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
       gl.deleteShader(shader)
-      
       return null
     }
 
@@ -432,6 +472,7 @@ class DelayedVideo {
 
       return Promise.resolve({
         texture: texture,
+        timestamp: frameArrivalTime,
         frameNumber: this.frameCounter
       })
     } catch { 
@@ -441,59 +482,88 @@ class DelayedVideo {
 
   async startDelayedVideo() {
     this.delayedVideoActive = true
+    this.lastDrawnFrameTimestamp = 0
     this.stopFrameCounter = 0
 
-    const renderLoop = async () => {
+    const renderLoop = async (timestamp) => {
       if (!this.delayedVideoActive) return
 
       requestAnimationFrame(renderLoop)
+
+      this.checkFrameRate(timestamp)
 
       if (!this.visibleTab || this.lastFrameShown) return
 
       this.frameCounter++
 
       try {
-        if (this.frameCounter - this.videoStartTime <= this.delay) {
-          this.drawWebGLFrame(this.initialFrame.texture)
-        } else if (this.delayedFrame) {
-          this.drawWebGLFrame(this.delayedFrame.texture)
-          
-          if (this.subtitleContext) {
-            this.subtitleContext.clearRect(0, 0, this.subtitleCanvas.width, this.subtitleCanvas.height)
+        if (this.timingMode === 'time') {
+          if (timestamp - this.videoStartTime <= this.delay) {
+            this.drawWebGLFrame(this.initialFrame.texture)
+          } else if (this.delayedFrame && this.delayedFrame.timestamp > this.lastDrawnFrameTimestamp - 34) {
+            this.drawWebGLFrame(this.delayedFrame.texture)
+            this.lastDrawnFrameTimestamp = this.delayedFrame.timestamp
+
+            if (this.subtitleContext) {
+              this.subtitleContext.clearRect(0, 0, this.subtitleCanvas.width, this.subtitleCanvas.height)
+              this.renderSubtitles(this.subtitleCanvas.width, this.subtitleCanvas.height)
+            }
+          }
+        } else {
+          if (this.frameCounter - this.videoStartTime <= this.frameDelay) {
+            this.drawWebGLFrame(this.initialFrame.texture)
+          } else if (this.delayedFrame) {
+            this.drawWebGLFrame(this.delayedFrame.texture)
             
-            this.renderSubtitles(this.subtitleCanvas.width, this.subtitleCanvas.height)
+            if (this.subtitleContext) {
+              this.subtitleContext.clearRect(0, 0, this.subtitleCanvas.width, this.subtitleCanvas.height)
+              this.renderSubtitles(this.subtitleCanvas.width, this.subtitleCanvas.height)
+            }
           }
         }
       } catch {}
-        
+
       if (this.video.ended) {
-        this.videoEnded = true
-        
-        this.stopFrameCounter++
+        if (this.timingMode === 'time' && !this.videoEnded) {
 
-        if (this.stopFrameCounter > this.delay) {
-          if (this.gl && this.videoCanvas) this.gl.clear(this.gl.COLOR_BUFFER_BIT)
-          if (this.subtitleContext) this.subtitleContext.clearRect(0, 0, this.subtitleCanvas.width, this.subtitleCanvas.height)
-          
-          try { this.gl.deleteTexture(this.currentFrame.texture) } catch {}
-          try { this.gl.deleteTexture(this.delayedFrame.texture) } catch {}
+          setTimeout(() => {
+            if (this.video.ended && !this.lastFrameShown) {
+              if (this.gl) this.gl.clear(this.gl.COLOR_BUFFER_BIT)
+              if (this.subtitleContext) this.subtitleContext.clearRect(0, 0, this.subtitleCanvas.width, this.subtitleCanvas.height)
+              
+              this.lastFrameShown = true
+            }
+          }, this.delay)
+        } else if (this.timingMode === 'frame') {
+          this.stopFrameCounter++
 
-          this.lastFrameShown = true
+          if (this.stopFrameCounter > this.frameDelay) {
+            if (this.gl) this.gl.clear(this.gl.COLOR_BUFFER_BIT)
+            if (this.subtitleContext) this.subtitleContext.clearRect(0, 0, this.subtitleCanvas.width, this.subtitleCanvas.height)
+            
+            this.lastFrameShown = true
+          }
         }
+
+        this.videoEnded = true
       }
 
-      if (this.video.paused) {
-        if (this.video.ended) return
-        this.videoPaused = true
-        
-        this.stopFrameCounter++
+      if (this.video.paused && !this.video.ended) {
+        if (this.timingMode === 'time' && !this.videoPaused) {
+          setTimeout(() => { if (this.video.paused && !this.lastFrameShown) this.lastFrameShown = true }, this.delay)
+        } else {
+          this.stopFrameCounter++
 
-        if (this.stopFrameCounter > this.delay) this.lastFrameShown = true
+          if (this.stopFrameCounter > this.delay) this.lastFrameShown = true
+        }
+
+        this.videoPaused = true
       }
     }
 
-    this.videoStartTime = this.frameCounter
-
+    if (this.timingMode === 'time') this.videoStartTime = performance.now()
+    else this.videoStartTime = this.frameCounter
+    
     renderLoop()
 
     this.getFrameStates()
@@ -535,7 +605,7 @@ class DelayedVideo {
       
       requestAnimationFrame(captureFrameLoop)
 
-      if (!this.visibleTab || this.videoPaused || this.videoEnded) return
+      if (!this.visibleTab || this.lastFrameShown || this.videoPaused || this.videoEnded) return
 
       const frameArrivalTime = performance.now()
       const framePromise = await this.captureFrame(frameArrivalTime)
@@ -554,10 +624,15 @@ class DelayedVideo {
             
             this.initialFrame = {
               texture: initialTexture,
-              frameNumber: this.frameCounter
+              timestamp: frame.timestamp,
+              frameNumber: frame.frameNumber
             }
 
-            this.videoStartTime = this.frameCounter
+            if (this.timingMode === 'time') {
+              this.videoStartTime = performance.now()
+            } else {
+              this.videoStartTime = this.frameCounter
+            }
           }
 
           if (this.restartDelayedVideo) {
@@ -572,10 +647,15 @@ class DelayedVideo {
             
             this.initialFrame = {
               texture: initialTexture,
-              frameNumber: this.frameCounter
+              timestamp: frame.timestamp,
+              frameNumber: frame.frameNumber
             }
 
-            this.videoStartTime = this.frameCounter
+            if (this.timingMode === 'time') {
+              this.videoStartTime = performance.now()
+            } else {
+              this.videoStartTime = this.frameCounter
+            }
           }
 
           if (this.tabWasHidden) {
@@ -590,14 +670,18 @@ class DelayedVideo {
             
             this.initialFrame = {
               texture: initialTexture,
-              frameNumber: this.frameCounter
+              timestamp: frame.timestamp,
+              frameNumber: frame.frameNumber
             }
             
-            this.videoStartTime = this.frameCounter
+            if (this.timingMode === 'time') {
+              setTimeout(() => { this.videoStartTime = performance.now() }, 17)
+            } else {
+              this.videoStartTime = this.frameCounter
+            }
           }
 
           this.currentFrame = frame
-
           this.scheduleFrameDelay()
         }
       }
@@ -610,26 +694,35 @@ class DelayedVideo {
 
   scheduleFrameDelay() {
     const currentFrame = this.currentFrame
-    const targetFrameNumber = this.frameCounter + this.delay
 
-    const delayLoop = () => {
-      if (this.frameCounter >= targetFrameNumber) {
-        if (currentFrame.frameNumber <= (this.acceptFramesAfter || 0)) {
+    if (this.timingMode === 'time') {
+      const adjustedDelay = this.delay - (performance.now() - currentFrame.timestamp) - 2
 
-          this.returnReusableTexture(currentFrame.texture)
-
-          return
-        }
-        
+      setTimeout(() => {
         if (this.delayedFrame?.texture) this.returnReusableTexture(this.delayedFrame.texture)
         
         this.delayedFrame = currentFrame
-      } else {
-        requestAnimationFrame(delayLoop)
-      }
-    }
+      }, Math.max(0, adjustedDelay))
+    } else {
+      const targetFrameNumber = this.frameCounter + this.frameDelay
 
-    requestAnimationFrame(delayLoop)
+      const delayLoop = () => {
+        if (this.frameCounter >= targetFrameNumber) {
+          if (currentFrame.frameNumber <= (this.acceptFramesAfter || 0)) {
+            this.returnReusableTexture(currentFrame.texture)
+            return
+          }
+          
+          if (this.delayedFrame?.texture) this.returnReusableTexture(this.delayedFrame.texture)
+          
+          this.delayedFrame = currentFrame
+        } else {
+          requestAnimationFrame(delayLoop)
+        }
+      }
+
+      requestAnimationFrame(delayLoop)
+    }
   }
 
   determineSubtitlePlayer() {
@@ -873,19 +966,21 @@ class DelayedVideo {
   }
 
   scheduleSubtitleDelay() {
-  const currentSubtitleLines = this.lines
-  const currentFrameNumber = this.frameCounter
-  
-  const subtitleDelayLoop = () => {
-    if (this.frameCounter - currentFrameNumber >= this.delay) {
-      this.delayedSubtitleLines = currentSubtitleLines
+    const currentSubtitleLines = this.lines
+
+    if (this.timingMode === 'time') {
+      setTimeout(() => { this.delayedSubtitleLines = currentSubtitleLines }, this.delay)
     } else {
+      const currentFrameNumber = this.frameCounter
+      
+      const subtitleDelayLoop = () => {
+        if (this.frameCounter - currentFrameNumber >= this.frameDelay) this.delayedSubtitleLines = currentSubtitleLines
+        else requestAnimationFrame(subtitleDelayLoop)
+      }
+      
       requestAnimationFrame(subtitleDelayLoop)
     }
   }
-  
-  requestAnimationFrame(subtitleDelayLoop)
-}
 
   renderSubtitles(overlayWidth, overlayHeight) {
     if (this.delayedSubtitleLines.length === 0 || !this.subtitleContext) return
@@ -1008,14 +1103,31 @@ class DelayedVideo {
     this.subtitleContext.restore()
   }
 
-  
   updateDelayedVideo(newDelay) {
-    const newDelayFrames = Math.round(newDelay / 16.67)
-    const oldDelay = this.delay
-    
-    this.delay = newDelayFrames
-    
-    if (newDelayFrames < oldDelay) this.acceptFramesAfter = this.frameCounter + newDelayFrames
+    this.originalDelay = newDelay
+
+    if (this.timingMode === 'time') {
+      this.delay = newDelay
+    } else {
+      const newDelayFrames = Math.round(newDelay / 16.67)
+      const oldDelay = this.frameDelay
+      
+      this.frameDelay = newDelayFrames
+      
+      if (newDelayFrames < oldDelay) {
+        this.acceptFramesAfter = this.frameCounter + newDelayFrames
+      }
+    }
+  }
+
+  getPerformanceInfo() {
+    return {
+      currentFPS: this.getCurrentFPS(),
+      timingMode: this.timingMode,
+      switchedToTime: this.switchedToTime,
+      frameCounter: this.frameCounter,
+      avgRAFInterval: this.rafIntervals.length > 0 ? (this.rafIntervals.reduce((a, b) => a + b) / this.rafIntervals.length).toFixed(2) : 0
+    }
   }
 
   stopDelayedVideo() {
@@ -1025,21 +1137,17 @@ class DelayedVideo {
 
     if (this.video) {
       this.video.removeEventListener('emptied', this.videoEmptiedHandler)
-      
       this.video.style.setProperty('opacity', '1', 'important')
-      
       setTimeout(() => { this.video.style.setProperty('opacity', '1', 'important') }, 17)
     }
 
     if (this.visibilityChangeHandler) {
       document.removeEventListener('visibilitychange', this.visibilityChangeHandler)
-      
       this.visibilityChangeHandler = null
     }
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect()
-      
       this.resizeObserver = null
     }
 
@@ -1082,14 +1190,12 @@ class DelayedVideo {
 
         if (this.program) {
           const shaders = this.gl.getAttachedShaders(this.program)
-
           if (shaders) {
             shaders.forEach(shader => {
               this.gl.detachShader(this.program, shader)
               this.gl.deleteShader(shader)
             })
           }
-
           this.gl.deleteProgram(this.program)
         }
 
@@ -1097,14 +1203,12 @@ class DelayedVideo {
         if (this.texCoordBuffer) this.gl.deleteBuffer(this.texCoordBuffer)
 
         const loseContext = this.gl.getExtension('WEBGL_lose_context')
-
         if (loseContext) loseContext.loseContext()
       }
 
       this.currentFrame = null
       this.delayedFrame = null
       this.initialFrame = null
-      
       this.gl = null
       this.program = null
       this.positionBuffer = null
