@@ -194,28 +194,16 @@ class DelayedVideo {
       if (this.rafIntervals.length >= 10) {
         const avgInterval = this.rafIntervals.reduce((a, b) => a + b) / this.rafIntervals.length
         
-        if (avgInterval < 15) this.switchToTimeMode()
+        if (avgInterval < 14) this.switchToTimeMode()
       }
     }
   }
 
   switchToTimeMode() {
-    if (this.switchedToTime) return
-    
     this.switchedToTime = true
     this.timingMode = 'time'
     this.delay = this.originalDelay
-    
-    this.videoStartTime = performance.now()
-    this.lastDrawnFrameTimestamp = 0
-  }
-
-  getCurrentFPS() {
-    if (this.rafIntervals.length < 5) return 60
-    
-    const avgInterval = this.rafIntervals.reduce((a, b) => a + b) / this.rafIntervals.length
-
-    return Math.round(1000 / avgInterval)
+    this.videoStartTime = this.initiationTime
   }
 
   addEventListeners() {
@@ -277,17 +265,6 @@ class DelayedVideo {
     this.subtitleCanvas.style.width = videoStyle.width
     this.subtitleCanvas.style.height = videoStyle.height
     this.subtitleCanvas.style.transform = videoStyle.transform
-
-    if (this.gl && this.availableTextures.length > 0) {
-      this.availableTextures.forEach(texture => this.gl.deleteTexture(texture))
-      this.usedTextures.forEach(texture => this.gl.deleteTexture(texture))
-
-      this.availableTextures = []
-      this.usedTextures.clear()
-      this.createReusableTextures()
-    }
-
-    try { this.drawWebGLFrame(this.delayedFrame.texture) } catch {}
   }
 
   drawWebGLFrame(texture) {
@@ -490,7 +467,7 @@ class DelayedVideo {
 
       requestAnimationFrame(renderLoop)
 
-      this.checkFrameRate(timestamp)
+      if (this.timingMode === 'frame') this.checkFrameRate(timestamp)
 
       if (!this.visibleTab || this.lastFrameShown) return
 
@@ -498,10 +475,11 @@ class DelayedVideo {
 
       try {
         if (this.timingMode === 'time') {
-          if (timestamp - this.videoStartTime <= this.delay) {
+          if (timestamp - this.videoStartTime < this.delay) {
             this.drawWebGLFrame(this.initialFrame.texture)
           } else if (this.delayedFrame && this.delayedFrame.timestamp > this.lastDrawnFrameTimestamp - 34) {
             this.drawWebGLFrame(this.delayedFrame.texture)
+            
             this.lastDrawnFrameTimestamp = this.delayedFrame.timestamp
 
             if (this.subtitleContext) {
@@ -510,7 +488,7 @@ class DelayedVideo {
             }
           }
         } else {
-          if (this.frameCounter - this.videoStartTime <= this.frameDelay) {
+          if (this.frameCounter - this.videoStartTime < this.frameDelay) {
             this.drawWebGLFrame(this.initialFrame.texture)
           } else if (this.delayedFrame) {
             this.drawWebGLFrame(this.delayedFrame.texture)
@@ -525,6 +503,7 @@ class DelayedVideo {
 
       if (this.video.ended) {
         if (this.timingMode === 'time' && !this.videoEnded) {
+          this.videoEnded = true
 
           setTimeout(() => {
             if (this.video.ended && !this.lastFrameShown) {
@@ -533,8 +512,9 @@ class DelayedVideo {
               
               this.lastFrameShown = true
             }
-          }, this.delay)
+          }, this.delay + 34)
         } else if (this.timingMode === 'frame') {
+          this.videoEnded = true
           this.stopFrameCounter++
 
           if (this.stopFrameCounter > this.frameDelay) {
@@ -544,25 +524,21 @@ class DelayedVideo {
             this.lastFrameShown = true
           }
         }
-
-        this.videoEnded = true
-      }
-
-      if (this.video.paused && !this.video.ended) {
+      } else if (this.video.paused) {
         if (this.timingMode === 'time' && !this.videoPaused) {
+          this.videoPaused = true
+
           setTimeout(() => { if (this.video.paused && !this.lastFrameShown) this.lastFrameShown = true }, this.delay)
-        } else {
+        } else if (this.timingMode === 'frame') {
           this.stopFrameCounter++
 
-          if (this.stopFrameCounter > this.delay) this.lastFrameShown = true
+          if (this.stopFrameCounter > this.frameDelay) this.lastFrameShown = true
         }
-
-        this.videoPaused = true
       }
     }
 
-    if (this.timingMode === 'time') this.videoStartTime = performance.now()
-    else this.videoStartTime = this.frameCounter
+    this.initiationTime = performance.now()
+    this.videoStartTime = this.frameCounter
     
     renderLoop()
 
@@ -574,20 +550,12 @@ class DelayedVideo {
     const getFrameState = async () => {
       if (!this.delayedVideoActive) return
 
-      if (this.videoPaused) {
-        this.videoPaused = false
-        this.lastFrameShown = false
-        this.stopFrameCounter = 0
-      }
+      if (this.videoEnded) this.restartDelayedVideo = true
 
-      if (this.videoEnded) {
-        this.updateCanvasDimensions()
-        
-        this.videoEnded = false
-        this.lastFrameShown = false
-        this.stopFrameCounter = 0
-        this.restartDelayedVideo = true
-      }
+      this.lastFrameShown = false
+      this.videoPaused = false
+      this.videoEnded = false
+      this.stopFrameCounter = 0
 
       this.requestVideoAnimationFrame(getFrameState)
     }
@@ -605,7 +573,7 @@ class DelayedVideo {
       
       requestAnimationFrame(captureFrameLoop)
 
-      if (!this.visibleTab || this.lastFrameShown || this.videoPaused || this.videoEnded) return
+      if (!this.visibleTab || this.video.paused || this.video.ended) return
 
       const frameArrivalTime = performance.now()
       const framePromise = await this.captureFrame(frameArrivalTime)
@@ -614,9 +582,7 @@ class DelayedVideo {
         const frame = framePromise
 
         if (frame && frame.texture) {
-          if (!this.initialFrame) {
-            this.updateCanvasDimensions()
-            
+          if (!this.initialFrame) {            
             const initialTexture = this.getReusableTexture()
 
             this.gl.bindTexture(this.gl.TEXTURE_2D, initialTexture)
@@ -626,12 +592,6 @@ class DelayedVideo {
               texture: initialTexture,
               timestamp: frame.timestamp,
               frameNumber: frame.frameNumber
-            }
-
-            if (this.timingMode === 'time') {
-              this.videoStartTime = performance.now()
-            } else {
-              this.videoStartTime = this.frameCounter
             }
           }
 
@@ -1117,16 +1077,6 @@ class DelayedVideo {
       if (newDelayFrames < oldDelay) {
         this.acceptFramesAfter = this.frameCounter + newDelayFrames
       }
-    }
-  }
-
-  getPerformanceInfo() {
-    return {
-      currentFPS: this.getCurrentFPS(),
-      timingMode: this.timingMode,
-      switchedToTime: this.switchedToTime,
-      frameCounter: this.frameCounter,
-      avgRAFInterval: this.rafIntervals.length > 0 ? (this.rafIntervals.reduce((a, b) => a + b) / this.rafIntervals.length).toFixed(2) : 0
     }
   }
 
