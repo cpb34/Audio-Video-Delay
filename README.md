@@ -2,8 +2,11 @@
 
 Browser extension that Delays audio and video for synchronized playback
 
+## Privacy
+This extension runs locally and does not collect any user data or analytics. It is fully open-source and can be inspected freely.
+
 ## Usage
-Toggle between delaying audio and video by clicking the `Audio/Video` text at the top of the interface. Input the desired delay in milliseconds and press the bottom button to enable and disable the delay.
+Click the Audio/Video text at the top to switch delay modes. Input the delay in milliseconds and enable or disable the delay below.
 
 ## Installation Guide
 
@@ -12,7 +15,7 @@ Audio/Video Delay is available on the [Chrome Web Store](https://chromewebstore.
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.3.1` from the latest GitHub release
+1. Download and unzip `Audio-Video-Delay-2.3.2` from the latest GitHub release
 2. Visit the browser extensions page and turn on Developer mode
 3. Click "Load unpacked"
 4. Select the unzipped folder
@@ -21,6 +24,8 @@ Audio/Video Delay can be manually loaded into the browser with the following ste
 This extension uses the Courier New and Brush Script MT fonts, which do not come standard on Linux. Use command `yay -S ttf-ms-fonts` to obtain these from the AUR.
 
 ## Release Notes
+
+**v2.3.2** - General optimization and logic fixes
 
 **v2.3.1** - Fallback to original frame queue method for displays over 60fps
 
@@ -46,8 +51,8 @@ This extension uses the Courier New and Brush Script MT fonts, which do not come
 
 ## Limitations
 
-- Video delay feature is not supported with DRM-protected content
-- Subtitle delay feature is only supported for YouTube and videos using the JW Player
+- DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
+- Subtitles are delayed only for videos on YouTube and the JW Player
 
 ## Contributions
 
