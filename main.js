@@ -1,4 +1,6 @@
+// Start the extension on page load
 class Monitor {
+  // Create maps for storing video metadata and start monitoring videos on the page
   constructor() { 
     this.videoCallbacks = new Map()
     this.delayedVideos = new Map()
@@ -6,34 +8,40 @@ class Monitor {
     this.startMonitor()
   }
 
+  // Monitors the status of all videos on the current page
   startMonitor() {
+    // Get extension settings from storage on initial load
     try {
       chrome.storage.local.get(['mode', 'delay', 'enabled'], (result) => {
         this.delay = result.delay
         this.mode = result.mode
         this.enabled = result.enabled
 
-        if (result.mode === 'Video' && result.enabled) {
+        // Start delaying video or audio if enabled
+        if (result.enabled && result.mode === 'Video') {
           this.setupVideoListeners()
-        } else if (result.mode === 'Audio' && result.enabled) {
+        } else if (result.enabled && result.mode === 'Audio') {
+          // Start a new delayed audio sink or update an active one
           if (!this.delayedAudio) this.delayedAudio = new DelayedAudio(this.delay)
           else this.delayedAudio.updateDelayedAudio(this.delay, true)
-        } else if (this.delayedAudio) {
-          this.delayedAudio.stopDelayedAudio()
         }
       })
 
+      // Check extension settings after settings are changed
       chrome.runtime.onMessage.addListener((message) => {
-        if (message.type === 'setDelay') {
+        if (message.type === 'setDelay') { // Message regarding delay enabled/disabled or delay type
           chrome.storage.local.get(['mode', 'enabled'], (result) => {
             this.delay = message.delay
             this.mode = result.mode
             this.enabled = result.enabled
 
-            this.stopVideoDelay(false, null)
+            // Stop delaying all videos
+            this.stopVideoDelay(null)
 
+            // Stop delaying audio if active
             if (this.delayedAudio) this.delayedAudio.stopDelayedAudio()
 
+            // Reenable video or audio delay if a delay went from disabled to enabled, else do nothing
             if (result.enabled && result.mode === 'Video') {
               this.setupVideoListeners()
             } else if (result.enabled && result.mode === 'Audio') {
@@ -41,36 +49,38 @@ class Monitor {
               else this.delayedAudio.updateDelayedAudio(this.delay, true)
             }
           })
-        } else if (message.type === 'updateDelay') {
+        } else if (message.type === 'updateDelay') { // Message regarding an updated delay amount
           chrome.storage.local.get(['mode', 'enabled'], (result) => {
+            if (!result.enabled) return
+
+            // Update current delay amount to new amount
             this.delay = message.delay
-
-            if (!result.enabled) {
-              this.stopVideoDelay(false, null)
-
-              if (this.delayedAudio) this.delayedAudio.stopDelayedAudio()
-            } else if (result.mode === 'Video') {
-              this.delayedVideos.forEach((delayedVideo) => { delayedVideo.updateDelayedVideo(this.delay) })
-            } else if (this.delayedAudio) {
-              this.delayedAudio.updateDelayedAudio(this.delay, false)
-            }
+            
+            // Update actively delayed videos or audio with new delay amount
+            if (result.mode === 'Video') this.delayedVideos.forEach((delayedVideo) => { delayedVideo.updateDelayedVideo(this.delay) })
+            else if (this.delayedAudio) this.delayedAudio.updateDelayedAudio(this.delay, false)
           })
         }
       })
     } catch {}
   }
 
+  // Create triggers when a video is started
   setupVideoListeners() {
+    // Remove observer if video delay is reenabled
     if (this.observer) {
       this.observer.disconnect()
 
       this.observer = null
     }
 
+    // Remove video callbacks
     this.clearVideoCallbacks()
 
+    // Map every video on the current page and wait for them to start playing
     document.querySelectorAll('video').forEach(video => { this.waitForVideoFrameRefresh(video) })
 
+    // Wait for videos to begin playing through observer
     this.observer = new MutationObserver(mutations => {
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
@@ -83,70 +93,73 @@ class Monitor {
     this.observer.observe(document.documentElement, { childList: true, subtree: true })
   }
 
+  // Remove each video's callback
   clearVideoCallbacks() {
     this.videoCallbacks.forEach((callbackId, video) => { if ('cancelVideoFrameCallback' in HTMLVideoElement.prototype) try { video.cancelVideoFrameCallback(callbackId) } catch {} })
     this.videoCallbacks.clear()
   }
 
+  // Halt until a video begins playing to avoid delaying unnecessary videos
   waitForVideoFrameRefresh(video) {
-    if (video.closest('.video-delay-container') || video.closest('.video-delay-container-relative') ||
-        this.videoCallbacks.has(video) || this.delayedVideos.has(video)) {
-      return
-    }
+    // Return if video is already mapped
+    if (video.closest('.video-delay-container') || video.closest('.video-delay-container-relative') || this.videoCallbacks.has(video) || this.delayedVideos.has(video)) return
 
+    // Start processing video to be delayed once it starts playing
     const requestFrameCallback = () => {
       if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
         const callbackId = video.requestVideoFrameCallback((now, metadata) => {
           this.videoCallbacks.delete(video)
 
-          this.processVideo(video)
+          // Video started to play
+          this.delayVideo(video)
         })
 
         this.videoCallbacks.set(video, callbackId)
       }
     }
 
+    // Request callback on initial load
     requestFrameCallback()
 
+    // Request callback when video starts playing
     const onPlay = () => { if (!this.videoCallbacks.has(video) && !this.delayedVideos.has(video)) requestFrameCallback() }
     
+    // Add listeners to this video
     video.addEventListener('play', onPlay)
     video.addEventListener('loadstart', onPlay)
   }
 
-  processVideo(video) {
-    if (!this.enabled || this.mode !== 'Video' ||
-        video.closest('.video-delay-container') || video.closest('.video-delay-container-relative')) {
-      return
-    }
-
+  // Start delaying the video and map it
+  delayVideo(video) {
     const delayedVideo = new DelayedVideo(video, this.delay)
-    
     this.delayedVideos.set(video, delayedVideo)
   }
 
-  stopVideoDelay(startNewMonitor, specificVideo) {
+  // Stop delaying all videos or stop and restart one video
+  stopVideoDelay(specificVideoToStop) {
     this.clearVideoCallbacks()
     
+    // Remove the observer
     if (this.observer) {
       this.observer.disconnect()
       this.observer = null
     }
 
-    if (specificVideo) {
-      const delayedVideo = this.delayedVideos.get(specificVideo)
+    if (specificVideoToStop) { // Stop delaying this one video (fixes black screen bug when YT video restarts)
+      const delayedVideo = this.delayedVideos.get(specificVideoToStop)
       
       if (delayedVideo) {
         delayedVideo.stopDelayedVideo()
 
-        this.delayedVideos.delete(specificVideo)
+        this.delayedVideos.delete(specificVideoToStop)
       }
-    } else {
+
+      // Restart the monitor
+      this.startMonitor()
+    } else { // Stop delaying all videos
       this.delayedVideos.forEach((delayedVideo) => { delayedVideo.stopDelayedVideo() })
       this.delayedVideos.clear()
     }
-
-    if (startNewMonitor) this.startMonitor()
   }
 }
 
@@ -190,8 +203,8 @@ class DelayedVideo {
       this.rafIntervals.push(interval)
       
       if (this.rafIntervals.length > 10) this.rafIntervals.shift()
-      
-      if (this.rafIntervals.length >= 10) {
+
+      if (this.rafIntervals.length >= 10) {        
         const avgInterval = this.rafIntervals.reduce((a, b) => a + b) / this.rafIntervals.length
         
         if (avgInterval < 14) this.switchToTimeMode()
@@ -212,7 +225,7 @@ class DelayedVideo {
     this.resizeObserver = new ResizeObserver(() => { this.updateCanvasDimensions() })
     this.resizeObserver.observe(this.video)
     
-    this.videoEmptiedHandler = () => { monitor.stopVideoDelay(true, this.video) }
+    this.videoEmptiedHandler = () => { monitor.stopVideoDelay(this.video) }
     
     this.video.addEventListener('emptied', this.videoEmptiedHandler)
 
@@ -397,6 +410,7 @@ class DelayedVideo {
     if (this.availableTextures.length > 0) {
       const texture = this.availableTextures.pop()
       this.usedTextures.add(texture)
+
       return texture
     }
     
@@ -410,6 +424,7 @@ class DelayedVideo {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
     
     this.usedTextures.add(texture)
+
     return texture
   }
 
@@ -431,6 +446,7 @@ class DelayedVideo {
 
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
       gl.deleteShader(shader)
+
       return null
     }
 
@@ -438,8 +454,6 @@ class DelayedVideo {
   }
 
   captureFrame(frameArrivalTime) {
-    if (!this.video || this.video.readyState < 2) return null
-
     try {
       const gl = this.gl
       const texture = this.getReusableTexture()
@@ -502,17 +516,19 @@ class DelayedVideo {
       } catch {}
 
       if (this.video.ended) {
-        if (this.timingMode === 'time' && !this.videoEnded) {
-          this.videoEnded = true
+        if (this.timingMode === 'time') {
+          if (!this.videoEnded) {
+            this.videoEnded = true
 
-          setTimeout(() => {
-            if (this.video.ended && !this.lastFrameShown) {
-              if (this.gl) this.gl.clear(this.gl.COLOR_BUFFER_BIT)
-              if (this.subtitleContext) this.subtitleContext.clearRect(0, 0, this.subtitleCanvas.width, this.subtitleCanvas.height)
-              
-              this.lastFrameShown = true
-            }
-          }, this.delay + 34)
+            setTimeout(() => {
+              if (this.video.ended && !this.lastFrameShown) {
+                if (this.gl) this.gl.clear(this.gl.COLOR_BUFFER_BIT)
+                if (this.subtitleContext) this.subtitleContext.clearRect(0, 0, this.subtitleCanvas.width, this.subtitleCanvas.height)
+                
+                this.lastFrameShown = true
+              }
+            }, this.delay + 34)
+          }
         } else if (this.timingMode === 'frame') {
           this.videoEnded = true
           this.stopFrameCounter++
@@ -524,11 +540,13 @@ class DelayedVideo {
             this.lastFrameShown = true
           }
         }
-      } else if (this.video.paused) {
-        if (this.timingMode === 'time' && !this.videoPaused) {
-          this.videoPaused = true
+      } else if (this.video.paused || this.video.readyState < 3) {
+        if (this.timingMode === 'time') {
+          if (!this.videoPaused) {
+            this.videoPaused = true
 
-          setTimeout(() => { if (this.video.paused && !this.lastFrameShown) this.lastFrameShown = true }, this.delay)
+            setTimeout(() => { if ((this.video.paused || this.video.readyState < 3) && !this.lastFrameShown) this.lastFrameShown = true }, this.delay)
+          }
         } else if (this.timingMode === 'frame') {
           this.stopFrameCounter++
 
@@ -573,7 +591,7 @@ class DelayedVideo {
       
       requestAnimationFrame(captureFrameLoop)
 
-      if (!this.visibleTab || this.video.paused || this.video.ended) return
+      if (!this.visibleTab || this.video.paused || this.video.ended || this.video.readyState < 3) return
 
       const frameArrivalTime = performance.now()
       const framePromise = await this.captureFrame(frameArrivalTime)
@@ -611,11 +629,8 @@ class DelayedVideo {
               frameNumber: frame.frameNumber
             }
 
-            if (this.timingMode === 'time') {
-              this.videoStartTime = performance.now()
-            } else {
-              this.videoStartTime = this.frameCounter
-            }
+            if (this.timingMode === 'time') this.videoStartTime = performance.now()
+            else this.videoStartTime = this.frameCounter
           }
 
           if (this.tabWasHidden) {
@@ -634,11 +649,8 @@ class DelayedVideo {
               frameNumber: frame.frameNumber
             }
             
-            if (this.timingMode === 'time') {
-              setTimeout(() => { this.videoStartTime = performance.now() }, 17)
-            } else {
-              this.videoStartTime = this.frameCounter
-            }
+            if (this.timingMode === 'time') setTimeout(() => { this.videoStartTime = performance.now() }, 17)
+            else this.videoStartTime = this.frameCounter
           }
 
           this.currentFrame = frame
@@ -670,6 +682,7 @@ class DelayedVideo {
         if (this.frameCounter >= targetFrameNumber) {
           if (currentFrame.frameNumber <= (this.acceptFramesAfter || 0)) {
             this.returnReusableTexture(currentFrame.texture)
+            
             return
           }
           
@@ -905,24 +918,24 @@ class DelayedVideo {
       })
     })
     
-    if (isAutogenerated && this.lines.length > 0) {
-      const logicalLines = []
-      let currentLine = []
-      
-      this.lines.forEach(segment => {
-        if (segment.newline) {
-          if (currentLine.length > 0) logicalLines.push(currentLine)
+    if (!isAutogenerated || this.lines.length === 0) return
 
-          currentLine = [segment]
-        } else {
-          currentLine.push(segment)
-        }
-      })
-      
-      if (currentLine.length > 0) logicalLines.push(currentLine)
-            
-      this.lines = logicalLines.slice(-2).flat()
-    }    
+    const logicalLines = []
+    let currentLine = []
+    
+    this.lines.forEach(segment => {
+      if (segment.newline) {
+        if (currentLine.length > 0) logicalLines.push(currentLine)
+
+        currentLine = [segment]
+      } else {
+        currentLine.push(segment)
+      }
+    })
+    
+    if (currentLine.length > 0) logicalLines.push(currentLine)
+          
+    this.lines = logicalLines.slice(-2).flat()
   }
 
   scheduleSubtitleDelay() {
@@ -1014,7 +1027,7 @@ class DelayedVideo {
       let rectX, currentX
 
       if (this.subtitleType === 'ytp-auto') {
-        rectX = Math.round(adjustedWidth * 0.25)
+        rectX = Math.round(adjustedWidth * 0.25 * (fontSize === 12 ? 0.4 : 1))
         currentX = rectX + padding
       } else {
         rectX = Math.round(adjustedWidth / 2 - totalLineWidth / 2 - padding)
@@ -1074,9 +1087,7 @@ class DelayedVideo {
       
       this.frameDelay = newDelayFrames
       
-      if (newDelayFrames < oldDelay) {
-        this.acceptFramesAfter = this.frameCounter + newDelayFrames
-      }
+      if (newDelayFrames < oldDelay) this.acceptFramesAfter = this.frameCounter + newDelayFrames
     }
   }
 
@@ -1153,6 +1164,7 @@ class DelayedVideo {
         if (this.texCoordBuffer) this.gl.deleteBuffer(this.texCoordBuffer)
 
         const loseContext = this.gl.getExtension('WEBGL_lose_context')
+
         if (loseContext) loseContext.loseContext()
       }
 
