@@ -12,7 +12,7 @@ Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/a
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.3.3` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
+1. Download and unzip `Audio-Video-Delay-2.4.0` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
 2. Visit the browser extensions page and turn on Developer mode
 3. Click "Load unpacked"
 4. Select the unzipped folder
