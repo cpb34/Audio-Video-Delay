@@ -4,7 +4,23 @@ Browser extension that Delays audio and video for synchronized playback
 ## Privacy
 This extension runs locally and does not collect any user data or analytics. It is fully open-source and can be freely reviewed.
 
-## Getting Started
+## Installation Guide
+This extension is built for Chromium-based browsers (Brave, Chrome, Edge, etc.). You can install it through the Chrome Web Store or by manually loading it into the browser. Use the latter process if you would like to modify the code or if you just like to guarantee what is running on your computer.
+
+### Chrome Web Store:
+Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo) and can be installed like any other extension on the Chrome Web Store
+
+### Load Unpacked:
+Audio/Video Delay can be manually loaded into the browser with the following steps:
+1. Download and unzip `Audio-Video-Delay-2.3.3` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
+2. Visit the browser extensions page and turn on Developer mode
+3. Click "Load unpacked"
+4. Select the unzipped folder
+
+### Optional Font Download for Arch Linux:
+This extension uses the Courier New and Brush Script MT fonts, which do not come standard on Linux. Use command `yay -S ttf-ms-fonts` to obtain these from the AUR.
+
+## Usage Guide
 Audio/Video Delay is intuitively built to be able to jump right in. Continue reading for technical details if it interests you.
 
 For the best experience with frame-perfect playback, set all displays to 60fps. If any display is over 60fps, frame drift may occur and the delayed video may be choppy at times. If a locked framerate above 60fps can't be maintained, the delayed video will be consistently terrible; only use over 60fps if your computer has a dedicated graphics card or powerful integrated graphics.
@@ -17,7 +33,7 @@ Video is delayed by default. Delay audio instead by clicking the yellow "Video" 
 
 ### Changing the Delay Amount
 Input the desired delay (in milliseconds) in the middle box; no page refresh is required.
-- For 60fps displays, the video delay timing is based on frame counters and not time directly. In this state, a conversion between time and frames takes place, and the actual delay will only change once the amount of frames to delay has changed. Therefore, changing the delay by 1ms will have no effect unless a new frame amount threshold is met, at which point you will see the delayed video will stop and resume once the delay period has elapsed. 
+- For 60fps displays, the video delay timing is based on frame counters and not time directly. In this state, a conversion between time and frames takes place, and the actual delay will only change once the amount of frames to delay has changed.
 - For displays over 60fps, video is delayed by the time input
 - Audio is delayed by the time input
 
@@ -38,23 +54,9 @@ Intel GPU/iGPU users:
 ### Video Still Looks Jittery
 Make sure your display is set to 60fps and not 30fps. The latter is often the default refresh rate for TVs. If on a TV, make sure the display is set to high performance in its settings.
 
-## Installation Guide
-This extension is built for Chromium-based browsers (Brave, Chrome, Edge, etc.). You can install it through the Chrome Web Store or by manually loading it into the browser. Use the latter process if you would like to modify the code or if you just like to guarantee what is running on your computer.
-
-### Chrome Web Store:
-Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo) and can be installed like any other extension on the Chrome Web Store
-
-### Load Unpacked:
-Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.3.3` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
-2. Visit the browser extensions page and turn on Developer mode
-3. Click "Load unpacked"
-4. Select the unzipped folder
-
-### Optional Font Download for Arch Linux:
-This extension uses the Courier New and Brush Script MT fonts, which do not come standard on Linux. Use command `yay -S ttf-ms-fonts` to obtain these from the AUR.
-
 ## Release Notes
+
+**v2.4.0** - Instagram Reels edge case handling, additional memory leak protections
 
 **v2.3.3** - Subtitle alignment fix for thumbnail-sized videos, logic fix for buffering videos, documentation updates
 
