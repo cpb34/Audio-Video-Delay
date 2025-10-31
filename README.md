@@ -2,48 +2,50 @@
 Browser extension that Delays audio and video for synchronized playback
 
 ## Privacy
-This extension runs locally and does not collect any user data or analytics. It is fully open-source and can be freely reviewed.
+Audio/Video Delay runs locally and does not collect any user data or analytics. It is fully open-source and can be freely reviewed.
+
+## Contributions
+If this extension solves your audio issues, please consider leaving a [Google review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews), starring the GitHub repository, or donating to my [PayPal](https://paypal.me/paypalcpb). If you would like to contribute to the code, I welcome you to do so in the develop branch. Thank you!
+
+## Limitations
+- DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
+- Subtitles are delayed only for videos on YouTube and the JW Player 
 
 ## Installation Guide
-This extension is built for Chromium-based browsers (Brave, Chrome, Edge, etc.). You can install it through the Chrome Web Store or by manually loading it into the browser. Use the latter process if you would like to modify the code or if you just like to guarantee what is running on your computer.
+Audio/Video Delay is built for Chromium-based browsers (Brave, Chrome, Edge, etc.). You can install it through the Chrome Web Store or by manually loading it into the browser. Use the latter process if you would like to modify the code or if you just like to guarantee what is running on your computer.
 
 ### Chrome Web Store:
 Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo) and can be installed like any other extension on the Chrome Web Store
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.4.0` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
+1. Download and unzip `Audio-Video-Delay-2.4.1` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
 2. Visit the browser extensions page and turn on Developer mode
 3. Click "Load unpacked"
 4. Select the unzipped folder
 
 ### Optional Font Download for Arch Linux:
-This extension uses the Courier New and Brush Script MT fonts, which do not come standard on Linux. Use command `yay -S ttf-ms-fonts` to obtain these from the AUR.
+Audio/Video Delay uses the Courier New and Brush Script MT fonts, which are not standard fonts on Linux. Use command `yay -S ttf-ms-fonts` to obtain these from the AUR.
 
 ## Usage Guide
-Audio/Video Delay is intuitively built to be able to jump right in. Continue reading for technical details if it interests you.
-
-For the best experience with frame-perfect playback, set all displays to 60fps. If any display is over 60fps, frame drift may occur and the delayed video may be choppy at times. If a locked framerate above 60fps can't be maintained, the delayed video will be consistently terrible; only use over 60fps if your computer has a dedicated graphics card or powerful integrated graphics.
+For the best experience with frame-perfect playback, enable graphics acceleration in your browser and set all displays to 60fps in your computer's settings. If any display is over 60fps, frame drift may occur and the delayed video may be choppy. Only use above 60fps if your computer has a dedicated graphics card or powerful integrated graphics and can maintain a locked framerate.
 
 ### Enabling/Disabling the Extension
-Enable or disable the extension by pressing the bottom button. The current on/off state is reflected here.
+Enable or disable the extension by pressing the bottom button in the GUI. The current on/off state is reflected here.
 
-### Changing Delay Modes
-Video is delayed by default. Delay audio instead by clicking the yellow "Video" button at the top. It will change to a red "Audio" button, and clicking it will return the delay mode back to video.
+### Changing Delay Modes Between Audio and Video
+Video is delayed by default. Delay audio instead by clicking the yellow "Video" button at the top of the GUI. It will change to a red "Audio" button, and clicking it will return the delay mode back to video.
 
 ### Changing the Delay Amount
-Input the desired delay (in milliseconds) in the middle box; no page refresh is required.
-- For 60fps displays, the video delay timing is based on frame counters and not time directly. In this state, a conversion between time and frames takes place, and the actual delay will only change once the amount of frames to delay has changed.
-- For displays over 60fps, video is delayed by the time input
-- Audio is delayed by the time input
+Input the desired delay (in milliseconds) in the middle box of the GUI; no page refresh is required.
 
 ### If Screen Tearing Occurs
 NVIDIA GPU users:
 - NVIDIA Control Panel -> Manage 3D Settings -> enable Vertical Sync in Global Settings or do so in Program Settings for your browser
 - Set all displays to 60fps, as the delay mechanism is fundamentally different for videos at 60fps and above 60fps
 - Follow potential fixes in the Intel section below
-- Roll back drivers with [NVCleanstall](https://nvcleanstall.net/download) if all else fails. If on gaming drivers, try studio drivers instead. This would be understandably painful, but a non-tearing, synchronized video is worth the trouble. There are no other extensions that you can try instead that will give you the same quality delayed video as the original video itself.
-- Submit a ticket and/or email me
+- Roll back drivers with [NVCleanstall](https://nvcleanstall.net/download) if all else fails. If on gaming drivers, try studio drivers instead.
+- Send an email to support@cpb.dev with a description of your issues and I will help resolve them
 
 AMD GPU/iGPU users:
 - AMD Adrenaline Software -> Gaming -> Display -> enable VRR
@@ -51,10 +53,9 @@ AMD GPU/iGPU users:
 Intel GPU/iGPU users:
 - Experiment with resolution settings, disabling hardware acceleration in the browser (will reduce performance but will confirm it's a GPU issue), and having multiple displays active (moving the cursor to the display not containing the video may help)
 
-### Video Still Looks Jittery
-Make sure your display is set to 60fps and not 30fps. The latter is often the default refresh rate for TVs. If on a TV, make sure the display is set to high performance in its settings.
-
 ## Release Notes
+
+**v2.4.1** - Resolved a bug which caused a black frame after switching tabs and restarting videos
 
 **v2.4.0** - Instagram Reels edge case handling, additional memory leak protections
 
@@ -83,10 +84,3 @@ Make sure your display is set to 60fps and not 30fps. The latter is often the de
 **v1.1.0** - Subtitle delay support implemented for videos using the JW Player
 
 **v1.0.0** - Video delay and UI foundation
-
-## Limitations
-- DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
-- Subtitles are delayed only for videos on YouTube and the JW Player
-
-## Contributions
-If this extension provides you value, please consider starring the GitHub repository, leaving a Google review, or donating to my [PayPal](https://paypal.me/paypalcpb). If you would like to contribute to the code, I welcome you to do so! Thank you!
