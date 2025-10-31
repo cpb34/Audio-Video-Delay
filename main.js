@@ -1,6 +1,4 @@
-// Start the extension on page load
 class Monitor {
-  // Create maps for storing video metadata and start monitoring videos on the page
   constructor() { 
     this.videoCallbacks = new Map()
     this.delayedVideos = new Map()
@@ -9,26 +7,21 @@ class Monitor {
     this.startMonitor()
   }
 
-  // Monitors the status of all videos on the current page
   startMonitor() {
-    // Get extension settings from storage on initial load
     try {
       chrome.storage.local.get(['mode', 'delay', 'enabled'], (result) => {
         this.delay = result.delay
         this.mode = result.mode
         this.enabled = result.enabled
 
-        // Start delaying video or audio if enabled
         if (result.enabled && result.mode === 'Video') {
           this.setupVideoListeners()
         } else if (result.enabled && result.mode === 'Audio') {
-          // Start a new delayed audio sink or update an active one
           if (!this.delayedAudio) this.delayedAudio = new DelayedAudio(this.delay)
           else this.delayedAudio.updateDelayedAudio(this.delay, true)
         }
       })
 
-      // Check extension settings after settings are changed
       chrome.runtime.onMessage.addListener((message) => {
         if (message.type === 'setDelay') {
           chrome.storage.local.get(['mode', 'enabled'], (result) => {
@@ -36,13 +29,10 @@ class Monitor {
             this.mode = result.mode
             this.enabled = result.enabled
 
-            // Stop delaying all videos
             this.stopVideoDelay(null)
 
-            // Stop delaying audio if active
             if (this.delayedAudio) this.delayedAudio.stopDelayedAudio()
 
-            // Reenable video or audio delay if a delay went from disabled to enabled, else do nothing
             if (result.enabled && result.mode === 'Video') {
               this.setupVideoListeners()
             } else if (result.enabled && result.mode === 'Audio') {
@@ -54,10 +44,8 @@ class Monitor {
           chrome.storage.local.get(['mode', 'enabled'], (result) => {
             if (!result.enabled) return
 
-            // Update current delay amount to new amount
             this.delay = message.delay
             
-            // Update actively delayed videos or audio with new delay amount
             if (result.mode === 'Video') this.delayedVideos.forEach((delayedVideo) => { delayedVideo.updateDelayedVideo(this.delay) })
             else if (this.delayedAudio) this.delayedAudio.updateDelayedAudio(this.delay, false)
           })
@@ -74,7 +62,6 @@ class Monitor {
 
     this.clearVideoCallbacks()
 
-    // Map every video on the current page and wait for them to start playing
     document.querySelectorAll('video').forEach(video => { this.waitForVideoFrameRefresh(video) })
 
     this.observer = new MutationObserver(mutations => {
@@ -89,18 +76,14 @@ class Monitor {
     this.observer.observe(document.documentElement, { childList: true, subtree: true })
   }
 
-  // Remove each video's callback
   clearVideoCallbacks() {
     this.videoCallbacks.forEach((callbackId, video) => { if ('cancelVideoFrameCallback' in HTMLVideoElement.prototype) try { video.cancelVideoFrameCallback(callbackId) } catch {} })
     this.videoCallbacks.clear()
   }
 
-  // Halt until a video begins playing to avoid delaying unnecessary videos
   waitForVideoFrameRefresh(video) {
-    // Return if video is already mapped
     if (video.closest('.video-delay-container') || video.closest('.video-delay-container-relative') || this.videoCallbacks.has(video) || this.delayedVideos.has(video)) return
 
-    // Start processing video to be delayed once it starts playing
     const requestFrameCallback = () => {
       if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
         const callbackId = video.requestVideoFrameCallback((now, metadata) => {
@@ -108,7 +91,6 @@ class Monitor {
 
           if (video.paused) return
 
-          // Video started to play
           this.delayVideo(video)
         })
 
@@ -116,21 +98,17 @@ class Monitor {
       }
     }
 
-    // Request callback on initial load
     requestFrameCallback()
 
-    // Request callback when video starts playing
     const onPlay = () => { if (!video.paused && !this.videoCallbacks.has(video) && !this.delayedVideos.has(video)) requestFrameCallback() }
     
-    // Add listeners to this video
     video.addEventListener('play', onPlay)
     video.addEventListener('loadstart', onPlay)
   }
 
-  // Start delaying the video and map it
   delayVideo(video) {
     if (this.isInstagram) {
-      this.delayedVideos.forEach((delayedVideo, trackedVideo) => { if (trackedVideo.paused) this.removeDelayedVideo(trackedVideo) })
+      this.delayedVideos.forEach((delayedVideo, trackedVideo) => { if (trackedVideo.paused) this.cleanupDelayedVideo(trackedVideo) })
     
       setTimeout(() => {
         const delayedVideo = new DelayedVideo(video, this.delay, this.isInstagram)
@@ -144,39 +122,33 @@ class Monitor {
     this.delayedVideos.set(video, delayedVideo)
   }
 
-  removeDelayedVideo(video) {
+  cleanupDelayedVideo(video) {
     const delayedVideo = this.delayedVideos.get(video)
+
+    if (!delayedVideo) return
     
-    if (delayedVideo) {
-      delayedVideo.cleanupTextures()
-      delayedVideo.stopDelayedVideo()
-      this.delayedVideos.delete(video)
-    }
+    delayedVideo.cleanupTextures()
+    delayedVideo.stopDelayedVideo()
+    this.delayedVideos.delete(video)
   }
 
-  // Stop delaying all videos or stop and restart one video
-  stopVideoDelay(specificVideoToStop) {
+  stopVideoDelay(videoToStop) {
     this.clearVideoCallbacks()
     
-    // Remove the observer
     if (this.observer) {
       this.observer.disconnect()
       this.observer = null
     }
 
-    if (specificVideoToStop) {
-      const delayedVideo = this.delayedVideos.get(specificVideoToStop)
-      
-      if (delayedVideo) {
-        delayedVideo.stopDelayedVideo()
-
-        this.delayedVideos.delete(specificVideoToStop)
-      }
-
-      // Restart the monitor
-      this.startMonitor()
+    if (videoToStop) {
+      this.cleanupDelayedVideo(videoToStop)
+      this.startMonitor
     } else {
-      this.delayedVideos.forEach((delayedVideo) => { delayedVideo.stopDelayedVideo() })
+      this.delayedVideos.forEach((delayedVideo) => {
+        delayedVideo.cleanupTextures()
+        delayedVideo.stopDelayedVideo()
+      })
+
       this.delayedVideos.clear()
     }
   }
@@ -187,14 +159,13 @@ class DelayedVideo {
     this.video = video
     this.originalDelay = delay
     this.delay = delay
-    this.frameDelay = Math.round(delay / 16.67)
+    this.frameDelay = Math.max(Math.round(delay / 16.67) - 1, 0)
     this.isInstagram = isInstagram
 
     this.timingMode = 'frame'
     this.frameCounter = 0
     this.lastRAFTime = performance.now()
     this.rafIntervals = []
-    this.switchedToTime = false
     
     this.availableTextures = []
     this.usedTextures = new Set()
@@ -221,22 +192,21 @@ class DelayedVideo {
   checkFrameRate(currentTime) {
     const interval = currentTime - this.lastRAFTime
     this.lastRAFTime = currentTime
-    
-    if (this.frameCounter > 10 && !this.switchedToTime) {
-      this.rafIntervals.push(interval)
-      
-      if (this.rafIntervals.length > 10) this.rafIntervals.shift()
 
-      if (this.rafIntervals.length >= 10) {        
-        const avgInterval = this.rafIntervals.reduce((a, b) => a + b) / this.rafIntervals.length
-        
-        if (avgInterval < 14) this.switchToTimeMode()
-      }
+    if (this.frameCounter < 10) return
+
+    this.rafIntervals.push(interval)
+    
+    if (this.rafIntervals.length >= 10) {
+      const avgInterval = this.rafIntervals.reduce((a, b) => a + b) / this.rafIntervals.length
+
+      if (avgInterval < 14) this.switchToTimeMode()
+
+      this.rafIntervals = []
     }
   }
 
   switchToTimeMode() {
-    this.switchedToTime = true
     this.timingMode = 'time'
     this.delay = this.originalDelay
     this.videoStartTime = this.initiationTime
@@ -268,12 +238,11 @@ class DelayedVideo {
     
     this.videoCanvas.width = this.video.videoWidth
     this.videoCanvas.height = this.video.videoHeight
-    
-    if (this.gl) this.gl.viewport(0, 0, this.videoCanvas.width, this.videoCanvas.height)
 
-    if (this.isInstagram) {
-      const videoRect = this.video.getBoundingClientRect()
-      
+    const videoRect = this.video.getBoundingClientRect()
+    const dpr = window.devicePixelRatio || 1
+
+    if (this.isInstagram) {      
       this.videoCanvas.style.position = 'fixed'
       this.videoCanvas.style.top = videoRect.top + 'px'
       this.videoCanvas.style.left = videoRect.left + 'px'
@@ -289,33 +258,22 @@ class DelayedVideo {
       this.videoCanvas.style.transform = videoStyle.transform
     }
     
-    const videoRect = this.video.getBoundingClientRect()
-    const dpr = window.devicePixelRatio || 1
-    
-    this.subtitleCanvas.width = videoRect.width * dpr
-    this.subtitleCanvas.height = videoRect.height * dpr
-    
     if (this.subtitleContext) {
       this.subtitleContext.setTransform(1, 0, 0, 1, 0, 0)
       this.subtitleContext.scale(dpr, dpr)
       this.subtitleContext.imageSmoothingEnabled = false
     }
 
-    if (this.isInstagram) {
-      this.subtitleCanvas.style.position = 'fixed'
-      this.subtitleCanvas.style.top = videoRect.top + 'px'
-      this.subtitleCanvas.style.left = videoRect.left + 'px'
-      this.subtitleCanvas.style.width = videoRect.width + 'px'
-      this.subtitleCanvas.style.height = videoRect.height + 'px'
-      this.subtitleCanvas.style.transform = videoStyle.transform
-    } else {
-      this.subtitleCanvas.style.position = videoStyle.position
-      this.subtitleCanvas.style.top = videoStyle.top
-      this.subtitleCanvas.style.left = videoStyle.left
-      this.subtitleCanvas.style.width = videoStyle.width
-      this.subtitleCanvas.style.height = videoStyle.height
-      this.subtitleCanvas.style.transform = videoStyle.transform
-    }
+    this.subtitleCanvas.width = videoRect.width * dpr
+    this.subtitleCanvas.height = videoRect.height * dpr
+    this.subtitleCanvas.style.position = videoStyle.position
+    this.subtitleCanvas.style.top = videoStyle.top
+    this.subtitleCanvas.style.left = videoStyle.left
+    this.subtitleCanvas.style.width = videoStyle.width
+    this.subtitleCanvas.style.height = videoStyle.height
+    this.subtitleCanvas.style.transform = videoStyle.transform
+
+    if (this.gl) this.gl.viewport(0, 0, this.videoCanvas.width, this.videoCanvas.height)
   }
 
   drawWebGLFrame(texture) {
@@ -364,13 +322,23 @@ class DelayedVideo {
 
     if (this.subtitleContext) this.subtitleContext.imageSmoothingEnabled = false
 
-    if (!this.video.ended) {
-      const framePromise = await this.captureFrame(performance.now())
+    const framePromise = await this.captureFrame(performance.now())
 
-      if (framePromise) {
-        const frame = framePromise
-        try { this.drawWebGLFrame(frame.texture) } catch {}
+    if (framePromise) {
+      const frame = framePromise
+
+      const initialTexture = this.getReusableTexture()
+
+      this.gl.bindTexture(this.gl.TEXTURE_2D, initialTexture)
+      this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.video)
+      
+      this.initialFrame = {
+        texture: initialTexture,
+        timestamp: frame.timestamp,
+        frameNumber: frame.frameNumber
       }
+
+      try { this.drawWebGLFrame(frame.texture) } catch {}
     }
 
     setTimeout(() => { this.video.style.setProperty('opacity', '0', 'important') }, 17)
@@ -448,6 +416,7 @@ class DelayedVideo {
     if (this.availableTextures.length > 0) {
       const texture = this.availableTextures.pop()
       this.usedTextures.add(texture)
+
       return texture
     }
     
@@ -461,6 +430,7 @@ class DelayedVideo {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
     
     this.usedTextures.add(texture)
+
     return texture
   }
 
@@ -473,45 +443,6 @@ class DelayedVideo {
     }
   }
 
-  cleanupTextures() {
-    if (!this.gl) return
-
-    this.pendingTimeouts.forEach(timeoutId => clearTimeout(timeoutId))
-    this.pendingTimeouts = []
-
-    this.pendingRAFs.forEach(rafId => cancelAnimationFrame(rafId))
-    this.pendingRAFs = []
-
-    try {
-      if (this.currentFrame && this.currentFrame.texture) {
-        this.gl.deleteTexture(this.currentFrame.texture)
-        this.usedTextures.delete(this.currentFrame.texture)
-      }
-      if (this.delayedFrame && this.delayedFrame.texture) {
-        this.gl.deleteTexture(this.delayedFrame.texture)
-        this.usedTextures.delete(this.delayedFrame.texture)
-      }
-      if (this.initialFrame && this.initialFrame.texture) {
-        this.gl.deleteTexture(this.initialFrame.texture)
-        this.usedTextures.delete(this.initialFrame.texture)
-      }
-
-      this.availableTextures.forEach(texture => {
-        if (this.gl.isTexture(texture)) this.gl.deleteTexture(texture)
-      })
-
-      this.usedTextures.forEach(texture => {
-        if (this.gl.isTexture(texture)) this.gl.deleteTexture(texture)
-      })
-
-      this.availableTextures = []
-      this.usedTextures.clear()
-      this.currentFrame = null
-      this.delayedFrame = null
-      this.initialFrame = null
-    } catch {}
-  }
-
   createShader(type, source) {
     const gl = this.gl
     const shader = gl.createShader(type)
@@ -521,6 +452,7 @@ class DelayedVideo {
 
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
       gl.deleteShader(shader)
+      
       return null
     }
 
@@ -565,7 +497,7 @@ class DelayedVideo {
 
       try {
         if (this.timingMode === 'time') {
-          if (timestamp - this.videoStartTime < this.delay) {
+          if (timestamp - this.videoStartTime < (this.delay + 17)) {
             this.drawWebGLFrame(this.initialFrame.texture)
           } else if (this.delayedFrame && this.delayedFrame.timestamp > this.lastDrawnFrameTimestamp - 34) {
             this.drawWebGLFrame(this.delayedFrame.texture)
@@ -578,7 +510,7 @@ class DelayedVideo {
             }
           }
         } else {
-          if (this.frameCounter - this.videoStartTime < this.frameDelay) {
+          if (this.frameCounter - this.videoStartTime < (this.frameDelay + 1)) {
             this.drawWebGLFrame(this.initialFrame.texture)
           } else if (this.delayedFrame) {
             this.drawWebGLFrame(this.delayedFrame.texture)
@@ -668,74 +600,68 @@ class DelayedVideo {
       const frameArrivalTime = performance.now()
       const framePromise = await this.captureFrame(frameArrivalTime)
 
-      if (framePromise) {
-        const frame = framePromise
+      if (!framePromise) return
 
-        if (frame && frame.texture) {
-          if (!this.initialFrame) {            
-            const initialTexture = this.getReusableTexture()
+      const frame = framePromise
 
-            this.gl.bindTexture(this.gl.TEXTURE_2D, initialTexture)
-            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.video)
-            
-            this.initialFrame = {
-              texture: initialTexture,
-              timestamp: frame.timestamp,
-              frameNumber: frame.frameNumber
-            }
-          }
+      if (!frame || !frame.texture) return
 
-          if (this.restartDelayedVideo) {
-            this.restartDelayedVideo = false
-            
-            if (this.initialFrame?.texture) this.returnReusableTexture(this.initialFrame.texture)
-            
-            const initialTexture = this.getReusableTexture()
+      if (!this.initialFrame) {
+        const initialTexture = this.getReusableTexture()
 
-            this.gl.bindTexture(this.gl.TEXTURE_2D, initialTexture)
-            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.video)
-            
-            this.initialFrame = {
-              texture: initialTexture,
-              timestamp: frame.timestamp,
-              frameNumber: frame.frameNumber
-            }
-
-            if (this.timingMode === 'time') {
-              this.videoStartTime = performance.now()
-            } else {
-              this.videoStartTime = this.frameCounter
-            }
-          }
-
-          if (this.tabWasHidden) {
-            this.tabWasHidden = false
-            
-            if (this.initialFrame?.texture) this.returnReusableTexture(this.initialFrame.texture)
-            
-            const initialTexture = this.getReusableTexture()
-
-            this.gl.bindTexture(this.gl.TEXTURE_2D, initialTexture)
-            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.video)
-            
-            this.initialFrame = {
-              texture: initialTexture,
-              timestamp: frame.timestamp,
-              frameNumber: frame.frameNumber
-            }
-            
-            if (this.timingMode === 'time') {
-              setTimeout(() => { this.videoStartTime = performance.now() }, 17)
-            } else {
-              this.videoStartTime = this.frameCounter
-            }
-          }
-
-          this.currentFrame = frame
-          this.scheduleFrameDelay()
+        this.gl.bindTexture(this.gl.TEXTURE_2D, initialTexture)
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.video)
+        
+        this.initialFrame = {
+          texture: initialTexture,
+          timestamp: frame.timestamp,
+          frameNumber: frame.frameNumber
         }
       }
 
+      if (this.restartDelayedVideo) {
+        this.restartDelayedVideo = false
+        
+        if (this.initialFrame?.texture) this.returnReusableTexture(this.initialFrame.texture)
+        
+        const initialTexture = this.getReusableTexture()
+
+        this.gl.bindTexture(this.gl.TEXTURE_2D, initialTexture)
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.video)
+        
+        this.initialFrame = {
+          texture: initialTexture,
+          timestamp: frame.timestamp,
+          frameNumber: frame.frameNumber
+        }
+
+        if (this.timingMode === 'time') this.videoStartTime = performance.now()
+        else this.videoStartTime = this.frameCounter
+      }
+
+      if (this.tabWasHidden) {
+        this.tabWasHidden = false
+        
+        if (this.initialFrame?.texture) this.returnReusableTexture(this.initialFrame.texture)
+        
+        const initialTexture = this.getReusableTexture()
+
+        this.gl.bindTexture(this.gl.TEXTURE_2D, initialTexture)
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.video)
+        
+        this.initialFrame = {
+          texture: initialTexture,
+          timestamp: frame.timestamp,
+          frameNumber: frame.frameNumber
+        }
+        
+        if (this.timingMode === 'time') this.videoStartTime = performance.now()
+        else this.videoStartTime = this.frameCounter
+      }
+
+      this.currentFrame = frame
+
+      this.scheduleFrameDelay()
       this.captureSubtitleData()
     }
 
@@ -768,6 +694,7 @@ class DelayedVideo {
         if (this.frameCounter >= targetFrameNumber) {
           if (currentFrame.frameNumber <= (this.acceptFramesAfter || 0)) {
             this.returnReusableTexture(currentFrame.texture)
+
             return
           }
           
@@ -835,9 +762,7 @@ class DelayedVideo {
       this.subtitleElements.forEach(element => {
         const html = element.innerHTML.trim()
 
-        if (html) {
-          this.parseJWSubtitles(html)
-        }
+        if (html) this.parseJWSubtitles(html)
       })
     } else {
       const ytCaptionElements = document.querySelectorAll('.ytp-caption-window-bottom, .ytp-caption-window-rollup')
@@ -956,6 +881,7 @@ class DelayedVideo {
     
     ytElements.forEach(element => {
       const captionText = element.querySelector('.captions-text')
+
       if (!captionText) return
       
       const visualLines = captionText.querySelectorAll('.caption-visual-line')
@@ -1141,13 +1067,49 @@ class DelayedVideo {
     if (this.timingMode === 'time') {
       this.delay = newDelay
     } else {
-      const newDelayFrames = Math.round(newDelay / 16.67)
+      const newFrameDelay = Math.max(Math.round(newDelay / 16.67) - 1, 0)
       const oldDelay = this.frameDelay
       
-      this.frameDelay = newDelayFrames
+      this.frameDelay = newFrameDelay
       
-      if (newDelayFrames < oldDelay) this.acceptFramesAfter = this.frameCounter + newDelayFrames
+      if (newFrameDelay < oldDelay) this.acceptFramesAfter = this.frameCounter + newFrameDelay
     }
+  }
+
+  cleanupTextures() {
+    if (!this.gl) return
+
+    this.pendingTimeouts.forEach(timeoutId => clearTimeout(timeoutId))
+    this.pendingTimeouts = []
+
+    this.pendingRAFs.forEach(rafId => cancelAnimationFrame(rafId))
+    this.pendingRAFs = []
+
+    try {
+      if (this.currentFrame && this.currentFrame.texture) {
+        this.gl.deleteTexture(this.currentFrame.texture)
+        this.usedTextures.delete(this.currentFrame.texture)
+      }
+
+      if (this.delayedFrame && this.delayedFrame.texture) {
+        this.gl.deleteTexture(this.delayedFrame.texture)
+        this.usedTextures.delete(this.delayedFrame.texture)
+      }
+
+      if (this.initialFrame && this.initialFrame.texture) {
+        this.gl.deleteTexture(this.initialFrame.texture)
+        this.usedTextures.delete(this.initialFrame.texture)
+      }
+
+      this.availableTextures.forEach(texture => { if (this.gl.isTexture(texture)) this.gl.deleteTexture(texture) })
+      this.usedTextures.forEach(texture => { if (this.gl.isTexture(texture)) this.gl.deleteTexture(texture) })
+
+      this.availableTextures = []
+      this.usedTextures.clear()
+      this.currentFrame = null
+      this.delayedFrame = null
+      this.initialFrame = null
+    } catch {}
   }
 
   stopDelayedVideo() {
@@ -1210,22 +1172,19 @@ class DelayedVideo {
 
     setTimeout(() => {
       if (this.gl) {
-        this.availableTextures.forEach(texture => {
-          if (this.gl.isTexture(texture)) this.gl.deleteTexture(texture)
-        })
-
-        this.usedTextures.forEach(texture => {
-          if (this.gl.isTexture(texture)) this.gl.deleteTexture(texture)
-        })
+        this.availableTextures.forEach(texture => { if (this.gl.isTexture(texture)) this.gl.deleteTexture(texture) })
+        this.usedTextures.forEach(texture => { if (this.gl.isTexture(texture)) this.gl.deleteTexture(texture) })
 
         if (this.program) {
           const shaders = this.gl.getAttachedShaders(this.program)
+
           if (shaders) {
             shaders.forEach(shader => {
               this.gl.detachShader(this.program, shader)
               this.gl.deleteShader(shader)
             })
           }
+
           this.gl.deleteProgram(this.program)
         }
 
