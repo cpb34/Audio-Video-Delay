@@ -9,7 +9,7 @@ If this extension solves your audio issues, please consider leaving a [Google re
 
 ## Limitations
 - DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
-- Subtitles are delayed only for videos on YouTube and the JW Player
+- Subtitles are delayed only for videos on YouTube and the JW Player 
 
 ## Installation Guide
 Audio/Video Delay is built for Chromium-based browsers (Brave, Chrome, Edge, etc.). You can install it through the Chrome Web Store or by manually loading it into the browser. Use the latter process if you would like to modify the code or if you just like to guarantee what is running on your computer.
