@@ -2,8 +2,6 @@ class Monitor {
   constructor() { 
     this.videoCallbacks = new Map()
     this.delayedVideos = new Map()
-    this.isInstagram = window.location.hostname.includes('instagram.com')
-
     this.startMonitor()
   }
 
@@ -107,18 +105,16 @@ class Monitor {
   }
 
   delayVideo(video) {
-    if (this.isInstagram) {
+    if (window.location.hostname.includes('instagram.com')) {
       this.delayedVideos.forEach((delayedVideo, trackedVideo) => { if (trackedVideo.paused) this.cleanupDelayedVideo(trackedVideo) })
-    
-      setTimeout(() => {
-        const delayedVideo = new DelayedVideo(video, this.delay, this.isInstagram)
-        this.delayedVideos.set(video, delayedVideo)
-      }, 100)
+
+      const delayedVideo = new DelayedVideo(video, this.delay)
+      this.delayedVideos.set(video, delayedVideo)
 
       return
     }
 
-    const delayedVideo = new DelayedVideo(video, this.delay, this.isInstagram)
+    const delayedVideo = new DelayedVideo(video, this.delay)
     this.delayedVideos.set(video, delayedVideo)
   }
 
@@ -155,12 +151,11 @@ class Monitor {
 }
 
 class DelayedVideo {
-  constructor(video, delay, isInstagram) {
+  constructor(video, delay) {
     this.video = video
     this.originalDelay = delay
     this.delay = delay
     this.frameDelay = Math.max(Math.round(delay / 16.67) - 1, 0)
-    this.isInstagram = isInstagram
 
     this.timingMode = 'frame'
     this.frameCounter = 0
@@ -242,17 +237,24 @@ class DelayedVideo {
     const videoRect = this.video.getBoundingClientRect()
     const dpr = window.devicePixelRatio || 1
 
-    if (this.isInstagram) {      
-      this.videoCanvas.style.position = 'fixed'
-      this.videoCanvas.style.top = videoRect.top + 'px'
-      this.videoCanvas.style.left = videoRect.left + 'px'
-      this.videoCanvas.style.width = videoRect.width + 'px'
-      this.videoCanvas.style.height = videoRect.height + 'px'
+    if (window.location.hostname.includes('instagram.com')) {      
+      this.videoCanvas.style.position = 'absolute'
+      this.videoCanvas.style.top = '0px'
+      this.videoCanvas.style.left = '0px'
+      this.videoCanvas.style.width = videoStyle.width
+      this.videoCanvas.style.height = videoStyle.height
       this.videoCanvas.style.transform = videoStyle.transform
     } else {
-      this.videoCanvas.style.position = videoStyle.position
-      this.videoCanvas.style.top = videoStyle.top
-      this.videoCanvas.style.left = videoStyle.left
+      if (videoStyle.position === 'relative') {
+        this.videoCanvas.style.position = 'absolute'
+        this.videoCanvas.style.top = '0px'
+        this.videoCanvas.style.left = '0px'
+      } else {
+        this.videoCanvas.style.position = videoStyle.position
+        this.videoCanvas.style.top = videoStyle.top
+        this.videoCanvas.style.left = videoStyle.left
+      }
+      
       this.videoCanvas.style.width = videoStyle.width
       this.videoCanvas.style.height = videoStyle.height
       this.videoCanvas.style.transform = videoStyle.transform
@@ -266,9 +268,17 @@ class DelayedVideo {
 
     this.subtitleCanvas.width = videoRect.width * dpr
     this.subtitleCanvas.height = videoRect.height * dpr
-    this.subtitleCanvas.style.position = videoStyle.position
-    this.subtitleCanvas.style.top = videoStyle.top
-    this.subtitleCanvas.style.left = videoStyle.left
+
+    if (videoStyle.position === 'relative') {
+      this.subtitleCanvas.style.position = 'absolute'
+      this.subtitleCanvas.style.top = '0px'
+      this.subtitleCanvas.style.left = '0px'
+    } else {
+      this.subtitleCanvas.style.position = videoStyle.position
+      this.subtitleCanvas.style.top = videoStyle.top
+      this.subtitleCanvas.style.left = videoStyle.left
+    }
+
     this.subtitleCanvas.style.width = videoStyle.width
     this.subtitleCanvas.style.height = videoStyle.height
     this.subtitleCanvas.style.transform = videoStyle.transform
@@ -341,7 +351,7 @@ class DelayedVideo {
       try { this.drawWebGLFrame(frame.texture) } catch {}
     }
 
-    setTimeout(() => { this.video.style.setProperty('opacity', '0', 'important') }, 17)
+    setTimeout(() => { this.video.style.setProperty('opacity', window.location.hostname.includes('plex.tv') ? '1' : '0', 'important') }, 17)
   }
 
   setupWebGL() {
