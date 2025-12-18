@@ -54,11 +54,11 @@ Intel GPU/iGPU users:
 - Experiment with resolution settings, disabling hardware acceleration in the browser (will reduce performance but will confirm it's a GPU issue), and having multiple displays active (moving the cursor to the display not containing the video may help)
 
 ## Known Bugs
-Normal Instagram post videos inconsistent due to undetermined video caching logic
+Normal Instagram post videos are inconsistent due to undetermined video caching logic
 
 ## Release Notes
 
-**v2.4.2** - Plex edge case handling and replaced Instagram Reels bandaid fix with proper solution
+**v2.4.2** - Plex edge case handling, replaced Instagram Reels bandaid fix with proper solution
 
 **v2.4.1** - Resolved a bug which caused a black frame after switching tabs and restarting videos
 
