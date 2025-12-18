@@ -5,7 +5,7 @@ Browser extension that Delays audio and video for synchronized playback
 Audio/Video Delay runs locally and does not collect any user data or analytics. It is fully open-source and can be freely reviewed.
 
 ## Contributions
-If this extension solves your audio issues, please consider leaving a [Google review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews), starring the GitHub repository, or donating to my [PayPal](https://paypal.me/paypalcpb). If you would like to contribute to the code, I welcome you to do so in the develop branch. Thank you!
+If this extension solves your audio issues, please consider leaving a [Google review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews), starring the GitHub repository, or donating to my [PayPal](https://buymeacoffee.com/cpb34). If you would like to contribute to the code, I welcome you to do so in the develop branch. Thank you!
 
 ## Limitations
 - DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
@@ -19,7 +19,7 @@ Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/a
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.4.1` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
+1. Download and unzip `Audio-Video-Delay-2.4.2` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
 2. Visit the browser extensions page and turn on Developer mode
 3. Click "Load unpacked"
 4. Select the unzipped folder
@@ -48,12 +48,17 @@ NVIDIA GPU users:
 - Send an email to support@cpb.dev with a description of your issues and I will help resolve them
 
 AMD GPU/iGPU users:
-- AMD Adrenaline Software -> Gaming -> Display -> enable VRR
+- AMD Adrenalin Software -> Gaming -> Display -> enable VRR
 
 Intel GPU/iGPU users:
 - Experiment with resolution settings, disabling hardware acceleration in the browser (will reduce performance but will confirm it's a GPU issue), and having multiple displays active (moving the cursor to the display not containing the video may help)
 
+## Known Bugs
+Normal Instagram post videos are inconsistent due to undetermined video caching logic
+
 ## Release Notes
+
+**v2.4.2** - Plex edge case handling, replaced Instagram Reels bandaid fix with proper solution
 
 **v2.4.1** - Resolved a bug which caused a black frame after switching tabs and restarting videos
 
