@@ -226,6 +226,18 @@ class DelayedVideo {
     document.addEventListener('visibilitychange', this.visibilityChangeHandler)
   }
 
+  isPlex() {
+    if (document.childNodes.length < 2 || document.childNodes[1].nodeType !== Node.COMMENT_NODE) return false
+    
+    const commentText = document.childNodes[1].textContent.trim()
+    
+    return commentText.includes('=======   ==') &&
+           commentText.includes('/==   /== /==   =====   ==   ==') &&
+           commentText.includes('/==////   /== /=======  //===') &&
+           commentText.includes('/==       /== //======  == //==') &&
+           commentText.includes('//        //   /////   //   //')
+  }
+
   updateCanvasDimensions() {
     if (!this.videoCanvas || !this.video) return
 
@@ -351,7 +363,7 @@ class DelayedVideo {
       try { this.drawWebGLFrame(frame.texture) } catch {}
     }
 
-    setTimeout(() => { this.video.style.setProperty('opacity', window.location.hostname.includes('plex.tv') ? '1' : '0', 'important') }, 17)
+    setTimeout(() => { this.video.style.setProperty('opacity', this.isPlex() ? '1' : '0', 'important') }, 17)
   }
 
   setupWebGL() {
