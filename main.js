@@ -249,28 +249,13 @@ class DelayedVideo {
     const videoRect = this.video.getBoundingClientRect()
     const dpr = window.devicePixelRatio || 1
 
-    if (window.location.hostname.includes('instagram.com')) {      
-      this.videoCanvas.style.position = 'absolute'
-      this.videoCanvas.style.top = '0px'
-      this.videoCanvas.style.left = '0px'
-      this.videoCanvas.style.width = videoStyle.width
-      this.videoCanvas.style.height = videoStyle.height
-      this.videoCanvas.style.transform = videoStyle.transform
-    } else {
-      if (videoStyle.position === 'relative') {
-        this.videoCanvas.style.position = 'absolute'
-        this.videoCanvas.style.top = '0px'
-        this.videoCanvas.style.left = '0px'
-      } else {
-        this.videoCanvas.style.position = videoStyle.position
-        this.videoCanvas.style.top = videoStyle.top
-        this.videoCanvas.style.left = videoStyle.left
-      }
-      
-      this.videoCanvas.style.width = videoStyle.width
-      this.videoCanvas.style.height = videoStyle.height
-      this.videoCanvas.style.transform = videoStyle.transform
-    }
+    this.videoCanvas.style.position = 'absolute'
+    this.videoCanvas.style.top = '0'
+    this.videoCanvas.style.left = '0'
+    this.videoCanvas.style.width = `${this.video.offsetWidth}px`
+    this.videoCanvas.style.height = `${this.video.offsetHeight}px`
+    this.videoCanvas.style.transform = videoStyle.transform
+    this.videoCanvas.style.zIndex = videoStyle.zIndex
     
     if (this.subtitleContext) {
       this.subtitleContext.setTransform(1, 0, 0, 1, 0, 0)
@@ -281,22 +266,15 @@ class DelayedVideo {
     this.subtitleCanvas.width = videoRect.width * dpr
     this.subtitleCanvas.height = videoRect.height * dpr
 
-    if (videoStyle.position === 'relative') {
-      this.subtitleCanvas.style.position = 'absolute'
-      this.subtitleCanvas.style.top = '0px'
-      this.subtitleCanvas.style.left = '0px'
-    } else {
-      this.subtitleCanvas.style.position = videoStyle.position
-      this.subtitleCanvas.style.top = videoStyle.top
-      this.subtitleCanvas.style.left = videoStyle.left
-    }
-
-    this.subtitleCanvas.style.width = videoStyle.width
-    this.subtitleCanvas.style.height = videoStyle.height
+    this.subtitleCanvas.style.position = 'absolute'
+    this.subtitleCanvas.style.top = '0'
+    this.subtitleCanvas.style.left = '0'
+    this.subtitleCanvas.style.width = `${this.video.offsetWidth}px`
+    this.subtitleCanvas.style.height = `${this.video.offsetHeight}px`
     this.subtitleCanvas.style.transform = videoStyle.transform
 
     if (this.gl) this.gl.viewport(0, 0, this.videoCanvas.width, this.videoCanvas.height)
-  }
+}
 
   drawWebGLFrame(texture) {
     if (!this.gl || !texture || !this.gl.isTexture(texture)) return
