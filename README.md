@@ -19,7 +19,7 @@ Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/a
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.4.4` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
+1. Download and unzip `Audio-Video-Delay-2.4.5` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
 2. Visit the browser extensions page and turn on Developer mode
 3. Click "Load unpacked"
 4. Select the unzipped folder
@@ -57,6 +57,8 @@ Intel GPU/iGPU users:
 Normal Instagram post videos are inconsistent due to undetermined video caching logic
 
 ## Release Notes
+
+**v2.4.5** - Bug fix for broken centering caused by v2.4.4
 
 **v2.4.4** - Canvas placement fix where delayed video was shifted underneath Bilibili player
 
