@@ -261,8 +261,8 @@ class DelayedVideo {
         this.videoCanvas.style.left = '0'
     }
 
-    this.videoCanvas.style.width = `${this.video.offsetWidth}px`
-    this.videoCanvas.style.height = `${this.video.offsetHeight}px`
+    this.videoCanvas.style.width = `${videoRect.width}px`
+    this.videoCanvas.style.height = `${videoRect.height}px`
     this.videoCanvas.style.transform = videoStyle.transform
     this.videoCanvas.style.zIndex = videoStyle.zIndex
     this.videoCanvas.style.margin = videoStyle.margin
@@ -288,8 +288,8 @@ class DelayedVideo {
         this.subtitleCanvas.style.left = '0'
     }
     
-    this.subtitleCanvas.style.width = `${this.video.offsetWidth}px`
-    this.subtitleCanvas.style.height = `${this.video.offsetHeight}px`
+    this.subtitleCanvas.style.width = `${videoRect.width}px`
+    this.subtitleCanvas.style.height = `${videoRect.height}px`
     this.subtitleCanvas.style.transform = videoStyle.transform
     this.subtitleCanvas.style.margin = videoStyle.margin
 
