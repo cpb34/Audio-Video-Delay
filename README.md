@@ -5,11 +5,11 @@ Browser extension that Delays audio and video for synchronized playback
 Audio/Video Delay runs locally and does not collect any user data or analytics. It is fully open-source and can be freely reviewed.
 
 ## Contributions
-If this extension solves your audio issues, please consider leaving a [Google review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews), starring the GitHub repository, or [donating](https://buymeacoffee.com/cpb34). If you would like to contribute to the code, I welcome you to do so in the develop branch. Thank you!
+If this extension solves your audio issues, please consider leaving a [Google review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews), starring the GitHub repository, or [donating](https://buymeacoffee.com/cpb34). If you would like to contribute to the code, you are welcome to do so in the develop branch. Thank you!
 
 ## Limitations
 - DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
-- Subtitles are delayed only for videos on YouTube and the JW Player 
+- Subtitles are delayed only for videos on YouTube and those using the JW Player 
 
 ## Installation Guide
 Audio/Video Delay is built for Chromium-based browsers (Brave, Chrome, Edge, etc.). You can install it through the Chrome Web Store or by manually loading it into the browser. Use the latter process if you would like to modify the code or if you just like to guarantee what is running on your computer.
@@ -19,7 +19,7 @@ Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/a
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.4.5` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
+1. Download and unzip `Audio-Video-Delay-2.4.6` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
 2. Visit the browser extensions page and turn on Developer mode
 3. Click "Load unpacked"
 4. Select the unzipped folder
@@ -57,6 +57,8 @@ Intel GPU/iGPU users:
 Normal Instagram post videos are inconsistent due to undetermined video caching logic
 
 ## Release Notes
+
+**v2.4.6** - Fixed Plex bug where edges weren't fully covered by modifying how video size is determined
 
 **v2.4.5** - Bug fix for broken centering caused by v2.4.4
 
