@@ -1,5 +1,5 @@
 # Audio/Video Delay
-Browser extension that Delays audio and video for synchronized playback
+FOSS extension that delays audio and video for synchronized playback
 
 ## Privacy
 Audio/Video Delay runs locally and does not collect any user data or analytics. It is fully open-source and can be freely reviewed.
@@ -9,7 +9,8 @@ If this extension solves your audio issues, please consider leaving a [Google re
 
 ## Limitations
 - DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
-- Subtitles are delayed only for videos on YouTube and those using the JW Player 
+- Subtitles are delayed only for videos on YouTube and those using the JW Player
+- Chromium-based browsers do not report per-screen compositor framerate due to fingerprinting risks. A video on a 60hz laptop screen will be a stuttering mess when plugged into a 120hz monitor, for example. The browser only associates frame requests at the speed of the highest refresh rate display. As of now, this is not treated as a bug as it is an intentional design choice to sacrifice this absurd edge case for perfect fluidity otherwise.
 
 ## Installation Guide
 Audio/Video Delay is built for Chromium-based browsers (Brave, Chrome, Edge, etc.). You can install it through the Chrome Web Store or by manually loading it into the browser. Use the latter process if you would like to modify the code or if you just like to guarantee what is running on your computer.
@@ -19,7 +20,7 @@ Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/a
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.4.6` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
+1. Download and unzip `Audio-Video-Delay-2.5.0` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
 2. Visit the browser extensions page and turn on Developer mode
 3. Click "Load unpacked"
 4. Select the unzipped folder
@@ -57,6 +58,8 @@ Intel GPU/iGPU users:
 Normal Instagram post videos are inconsistent due to undetermined video caching logic
 
 ## Release Notes
+
+**v2.5.0** - Pausing changed to be immediate while maintaing the delay buffer. Removed the time-based delay for displays over 60hz; previous frame-perfect behavior now available for all displays. Fixed render bug for sites with cross-origin hosted streams. Modified video delay failure result from black video to no modification.
 
 **v2.4.6** - Fixed Plex bug where edges weren't fully covered by modifying how video size is determined
 
