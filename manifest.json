@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Audio/Video Delay",
-  "version": "2.4.6",
+  "version": "2.5.0",
   "description": "Delays audio and video for synchronized playback",
-  "permissions": ["storage"],
+  "permissions": ["storage", "system.display"],
   "content_scripts": [{ "matches": ["<all_urls>"], "js": ["main.js"], "all_frames": true }],
   "action": { "default_popup": "gui.html" },
   "icons": { "256": "icon.png" }
