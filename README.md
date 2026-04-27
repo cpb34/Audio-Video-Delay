@@ -10,7 +10,6 @@ If this extension solves your audio issues, please consider leaving a [Google re
 ## Limitations
 - DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
 - Subtitles are delayed only for videos on YouTube and those using the JW Player
-- Chromium-based browsers do not report per-screen compositor framerate due to fingerprinting risks. A video on a 60hz laptop screen will be a stuttering mess when plugged into a 120hz monitor, for example. The browser only associates frame requests at the speed of the highest refresh rate display. As of now, this is not treated as a bug as it is an intentional design choice to sacrifice this absurd edge case for perfect fluidity otherwise.
 
 ## Installation Guide
 Audio/Video Delay is built for Chromium-based browsers (Brave, Chrome, Edge, etc.). You can install it through the Chrome Web Store or by manually loading it into the browser. Use the latter process if you would like to modify the code or if you just like to guarantee what is running on your computer.
@@ -29,7 +28,7 @@ Audio/Video Delay can be manually loaded into the browser with the following ste
 Audio/Video Delay uses the Courier New and Brush Script MT fonts, which are not standard fonts on Linux. Use command `yay -S ttf-ms-fonts` to obtain these from the AUR.
 
 ## Usage Guide
-For the best experience with frame-perfect playback, enable graphics acceleration in your browser and set all displays to 60fps in your computer's settings. If any display is over 60fps, frame drift may occur and the delayed video may be choppy. Only use above 60fps if your computer has a dedicated graphics card or powerful integrated graphics and can maintain a locked framerate.
+Ensure graphics acceleration is enabled in your browser settings. If you have multiple displays, set all to the same refresh rate or watch videos on the one with the highest.
 
 ### Enabling/Disabling the Extension
 Enable or disable the extension by pressing the bottom button in the GUI. The current on/off state is reflected here.
