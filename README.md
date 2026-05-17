@@ -4,8 +4,8 @@ FOSS extension that delays audio and video for synchronized playback
 ## Privacy
 Audio/Video Delay runs locally and does not collect any user data or analytics. It is fully open-source and can be freely reviewed.
 
-## Contributions
-If this extension solves your audio issues, please consider leaving a [Google review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews), starring the GitHub repository, or [donating](https://buymeacoffee.com/cpb34). If you would like to contribute to the code, you are welcome to do so in the develop branch. Thank you!
+## Support the Project
+If this extension feels like magic and solves your issues, please consider sponsoring me at [Ko-Fi](https://ko-fi.com/cpb34). Even better (and free!), write a [Google review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews) or star the GitHub repository. Hundreds of hours went into making the experience as seamless as possible, so any way of paying it forward is greatly appreciated! If you would like to contribute to the code, you are welcome to do so in the develop branch. Thank you!
 
 ## Limitations
 - DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
