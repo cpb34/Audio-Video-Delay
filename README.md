@@ -24,8 +24,10 @@ Audio/Video Delay can be manually loaded into the browser with the following ste
 3. Click "Load unpacked"
 4. Select the unzipped folder
 
-### Optional Font Download for Arch Linux:
-Audio/Video Delay uses the Courier New and Brush Script MT fonts, which are not standard fonts on Linux. Use command `yay -S ttf-ms-fonts` to obtain these from the AUR.
+### Optional Font Download for Linux:
+Audio/Video Delay uses the Courier New and Brush Script MT fonts, which are not standard on Linux. The following commands can be used to install these fonts for Arch- and Debian-based distros.
+- AUR: `yay -S ttf-ms-fonts`
+- apt: `sudo apt install ttf-mscorefonts-installer && sudo fc-cache -fv`
 
 ## Usage Guide
 Ensure graphics acceleration is enabled in your browser settings. If you have multiple displays, set all to the same refresh rate or watch videos on the one with the highest.
