@@ -2,14 +2,29 @@ class Monitor {
   constructor() { 
     this.videoCallbacks = new Map()
     this.delayedVideos = new Map()
+    this.playListeners = new Map()
     this.startMonitor()
   }
 
+  isVideoDelayActive() {
+    return this.enabled && this.mode === 'Video'
+  }
+
+  removePlayListeners() {
+    this.playListeners.forEach((onPlay, video) => {
+      video.removeEventListener('play', onPlay)
+      video.removeEventListener('loadstart', onPlay)
+    })
+
+    this.playListeners.clear()
+  }
+
   startMonitor() {
-    chrome.storage.local.get(['mode', 'delay', 'enabled'], (result) => {
+    chrome.storage.local.get(['mode', 'delay', 'enabled', 'subtitleDelay'], (result) => {
       this.delay = result.delay
       this.mode = result.mode
       this.enabled = result.enabled
+      this.subtitleDelay = result.subtitleDelay !== false
 
       if (result.enabled && result.mode === 'Video') {
         this.detectCompositorFrametime()
@@ -46,6 +61,10 @@ class Monitor {
           if (result.mode === 'Video') this.delayedVideos.forEach((delayedVideo) => { delayedVideo.updateDelayedVideo(this.delay) })
           else if (this.delayedAudio) this.delayedAudio.updateDelayedAudio(this.delay, false)
         })
+      } else if (message.type === 'setSubtitleDelay') {
+        this.subtitleDelay = message.subtitleDelay
+
+        this.delayedVideos.forEach((delayedVideo) => { delayedVideo.updateSubtitleDelay(this.subtitleDelay) })
       }
     })
   }
@@ -70,7 +89,7 @@ class Monitor {
 
       if (variance < 0.5) {
         this.compositorFrameTime = avg
-        this.setupVideoListeners()
+        if (this.isVideoDelayActive()) this.setupVideoListeners()
         return
       }
 
@@ -112,7 +131,7 @@ class Monitor {
 
     if (!video.crossOrigin) {
       video.crossOrigin = 'anonymous'
-      if (video.src) {
+      if (video.src && !video.src.startsWith('blob:')) {
         const currentSrc = video.src
         video.src = ''
         video.src = currentSrc
@@ -120,11 +139,13 @@ class Monitor {
     }
 
     const requestFrameCallback = () => {
+      if (!this.isVideoDelayActive()) return
+
       if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
         const callbackId = video.requestVideoFrameCallback((now, metadata) => {
           this.videoCallbacks.delete(video)
 
-          if (video.paused) return
+          if (video.paused || !this.isVideoDelayActive()) return
 
           this.delayVideo(video)
         })
@@ -135,10 +156,19 @@ class Monitor {
 
     requestFrameCallback()
 
+    const previousOnPlay = this.playListeners.get(video)
+
+    if (previousOnPlay) {
+      video.removeEventListener('play', previousOnPlay)
+      video.removeEventListener('loadstart', previousOnPlay)
+    }
+
     const onPlay = () => { if (!video.paused && !this.videoCallbacks.has(video) && !this.delayedVideos.has(video)) requestFrameCallback() }
     
     video.addEventListener('play', onPlay)
     video.addEventListener('loadstart', onPlay)
+
+    this.playListeners.set(video, onPlay)
   }
 
   delayVideo(video) {
@@ -177,6 +207,8 @@ class Monitor {
       this.cleanupDelayedVideo(videoToStop)
       this.startMonitor
     } else {
+      this.removePlayListeners()
+
       this.delayedVideos.forEach((delayedVideo) => {
         delayedVideo.cleanupTextures()
         delayedVideo.stopDelayedVideo()
@@ -196,6 +228,7 @@ class DelayedVideo {
     this.availableTextures = []
     this.usedTextures = new Set()
 
+    this.delaySubtitles = monitor.subtitleDelay
     this.subtitleElements = []
     this.pendingSubtitles = []
     this.hiddenSubtitleElements = []
@@ -360,7 +393,8 @@ class DelayedVideo {
     this.subtitleCanvas.style.setProperty('pointer-events', 'none', 'important')
     this.subtitleCanvas.style.setProperty('object-fit', 'contain', 'important')
 
-    this.gl = this.videoCanvas.getContext('webgl2') || this.videoCanvas.getContext('webgl')
+    const contextAttributes = { antialias: false, depth: false, stencil: false }
+    this.gl = this.videoCanvas.getContext('webgl2', contextAttributes) || this.videoCanvas.getContext('webgl', contextAttributes)
 
     if (!this.gl) return
 
@@ -654,9 +688,7 @@ class DelayedVideo {
     const hasJwCaptions = visibleCaptions.some(element => element.innerHTML.trim().includes('jw-reset'))
 
     if (!hasJwCaptions) {
-      this.hideSubtitlesStyle = document.createElement('style')
-      this.hideSubtitlesStyle.textContent = '.ytp-caption-window-bottom, .ytp-caption-window-rollup { opacity: 0 !important; }'
-      document.head.appendChild(this.hideSubtitlesStyle)
+      this.setSubtitleVisibility(this.delaySubtitles)
 
       return false
     }
@@ -664,15 +696,50 @@ class DelayedVideo {
     this.subtitleType = 'jwp'
     this.subtitleElements = Array.from(visibleCaptions)
 
-    this.subtitleElements.forEach(element => {
-      const originalStyles = { opacity: element.style.opacity, display: element.style.display }
-
-      element.style.setProperty('opacity', '0', 'important')
-
-      this.hiddenSubtitleElements.push({ element, originalStyles })
-    })
+    this.setSubtitleVisibility(this.delaySubtitles)
 
     return true
+  }
+
+  setSubtitleVisibility(hidden) {
+    if (this.subtitleType === 'jwp') {
+      if (hidden) {
+        this.subtitleElements.forEach(element => {
+          if (this.hiddenSubtitleElements.some(item => item.element === element)) return
+
+          const originalStyles = { opacity: element.style.opacity, display: element.style.display }
+
+          element.style.setProperty('opacity', '0', 'important')
+
+          this.hiddenSubtitleElements.push({ element, originalStyles })
+        })
+      } else if (this.hiddenSubtitleElements.length > 0) {
+        this.hiddenSubtitleElements.forEach(item => {
+          if (item.element) {
+            item.element.style.removeProperty('opacity')
+
+            if (item.originalStyles) {
+              Object.entries(item.originalStyles).forEach(([prop, value]) => {
+                if (value !== undefined && value !== null) item.element.style[prop] = value
+              })
+            }
+          }
+        })
+
+        this.hiddenSubtitleElements = []
+      }
+    } else {
+      if (hidden) {
+        if (!this.hideSubtitlesStyle) {
+          this.hideSubtitlesStyle = document.createElement('style')
+          this.hideSubtitlesStyle.textContent = '.ytp-caption-window-bottom, .ytp-caption-window-rollup { opacity: 0 !important; }'
+          document.head.appendChild(this.hideSubtitlesStyle)
+        }
+      } else if (this.hideSubtitlesStyle?.parentNode) {
+        this.hideSubtitlesStyle.parentNode.removeChild(this.hideSubtitlesStyle)
+        this.hideSubtitlesStyle = null
+      }
+    }
   }
 
   captureSubtitleData() {
@@ -685,7 +752,8 @@ class DelayedVideo {
         if (html) this.parseJWSubtitles(html)
       })
     } else {
-      const ytCaptionElements = document.querySelectorAll('.ytp-caption-window-bottom, .ytp-caption-window-rollup')
+      const captionRoot = this.video.closest('.html5-video-player') || document
+      const ytCaptionElements = captionRoot.querySelectorAll('.ytp-caption-window-bottom, .ytp-caption-window-rollup')
 
       if (ytCaptionElements.length > 0) {
         const captionsToCheck = Array.from(ytCaptionElements).filter(element => element.innerHTML.trim().length > 0)
@@ -699,6 +767,19 @@ class DelayedVideo {
         }
       }
     }
+
+    const signature = this.lines.map(segment => segment.text).join('').replace(/[\s\u200B]/g, '')
+
+    if (signature !== this.lastSubtitleSignature) {
+      this.lastSubtitleSignature = signature
+      this.lastGoodLines = this.lines.map(segment => ({
+        text: segment.text,
+        newline: segment.newline,
+        styles: { bold: segment.styles.bold, italic: segment.styles.italic, underlined: segment.styles.underlined }
+      }))
+    }
+
+    this.lines = this.lastGoodLines
 
     this.scheduleSubtitleDelay()
   }
@@ -774,40 +855,32 @@ class DelayedVideo {
     })
   }
 
-  parseYTSubtitles(ytElements, isAutogenerated) {
+parseYTSubtitles(ytElements, isAutogenerated) {
     this.subtitleType = isAutogenerated ? 'ytp-auto' : 'ytp'
+
+    const allVisualLines = []
 
     ytElements.forEach(element => {
       const captionText = element.querySelector('.captions-text')
 
       if (!captionText) return
 
-      captionText.querySelectorAll('.caption-visual-line').forEach(visualLine => {
-        visualLine.querySelectorAll('.ytp-caption-segment').forEach((segment, segmentIndex) => {
-          const text = segment.textContent.trim()
+      captionText.querySelectorAll('.caption-visual-line').forEach(visualLine => { allVisualLines.push(visualLine) })
+    })
 
-          if (text) this.lines.push({ text, newline: segmentIndex === 0, styles: { bold: false, italic: false, underlined: false } })
-        })
+    const visualLinesToParse = isAutogenerated ? allVisualLines.slice(-2) : allVisualLines
+
+    visualLinesToParse.forEach(visualLine => {
+      visualLine.querySelectorAll('.ytp-caption-segment').forEach((segment, segmentIndex) => {
+        let text = segment.textContent.trim()
+
+        if (!text) return
+
+        if (segmentIndex > 0) text = ' ' + text
+
+        this.lines.push({ text, newline: segmentIndex === 0, styles: { bold: false, italic: false, underlined: false } })
       })
     })
-
-    if (!isAutogenerated || this.lines.length === 0) return
-
-    const logicalLines = []
-    let currentLine = []
-
-    this.lines.forEach(segment => {
-      if (segment.newline) {
-        if (currentLine.length > 0) logicalLines.push(currentLine)
-        currentLine = [segment]
-      } else {
-        currentLine.push(segment)
-      }
-    })
-
-    if (currentLine.length > 0) logicalLines.push(currentLine)
-
-    this.lines = logicalLines.slice(-2).flat()
   }
 
   scheduleSubtitleDelay() {
@@ -818,7 +891,7 @@ class DelayedVideo {
   }
 
   renderSubtitles(overlayWidth, overlayHeight) {
-    if (this.delayedSubtitleLines.length === 0 || !this.subtitleContext) return
+    if (!this.delaySubtitles || this.delayedSubtitleLines.length === 0 || !this.subtitleContext) return
 
     const dpr = window.devicePixelRatio || 1
 
@@ -941,6 +1014,12 @@ class DelayedVideo {
     }
   }
 
+  updateSubtitleDelay(newValue) {
+    this.delaySubtitles = newValue
+
+    this.setSubtitleVisibility(newValue)
+  }
+
   cleanupTextures() {
     if (!this.gl) return
 
@@ -1002,26 +1081,7 @@ class DelayedVideo {
       this.resizeObserver = null
     }
 
-    if (this.hiddenSubtitleElements?.length > 0) {
-      this.hiddenSubtitleElements.forEach(item => {
-        if (item.element) {
-          item.element.style.removeProperty('opacity')
-
-          if (item.originalStyles) {
-            Object.entries(item.originalStyles).forEach(([prop, value]) => {
-              if (value !== undefined && value !== null) item.element.style[prop] = value
-            })
-          }
-        }
-      })
-
-      this.hiddenSubtitleElements = []
-    }
-
-    if (this.hideSubtitlesStyle?.parentNode) {
-      this.hideSubtitlesStyle.parentNode.removeChild(this.hideSubtitlesStyle)
-      this.hideSubtitlesStyle = null
-    }
+    this.setSubtitleVisibility(false)
 
     this.subtitleElements = []
     this.delayedSubtitleLines = []
@@ -1077,6 +1137,7 @@ class DelayedAudio {
     this.isActive = true
     this.audioSources = new Map()
     this.processedElements = new Set()
+    this.context = null
     
     this.startDelayedAudio()
   }
@@ -1114,39 +1175,29 @@ class DelayedAudio {
     this.processedElements.add(element)
 
     const setupElement = () => {
-      const context = new AudioContext()
-      const source = context.createMediaElementSource(element)
-      const delayNode = context.createDelay(120)
-      const gainNode = context.createGain()
-      const bypassGain = context.createGain()
-      
-      source.connect(gainNode)
-      source.connect(bypassGain)
-      gainNode.connect(delayNode)
-      delayNode.connect(context.destination)
-      bypassGain.connect(context.destination)
+      if (!this.context) this.context = new AudioContext()
 
-      this.audioSources.set(element, {
-        context: context,
-        source: source,
-        delayNode: delayNode,
-        gainNode: gainNode,
-        bypassGain: bypassGain
-      })
+      const context = this.context
+      const source = context.createMediaElementSource(element)
+
+      source.connect(context.destination)
+
+      this.audioSources.set(element, { source: source, delayNode: null })
 
       this.updateElementDelay(element)
 
-      if (context.state === 'suspended') {
-        const resume = () => {
-          context.resume()
-          
-          element.removeEventListener('play', resume)
-          element.removeEventListener('canplay', resume)
-        }
+      const onPlay = () => { if (context.state === 'suspended') context.resume() }
 
-        element.addEventListener('play', resume)
-        element.addEventListener('canplay', resume)
+      const onPause = () => {
+        if (element.ended) return
+
+        for (const trackedElement of this.audioSources.keys()) if (!trackedElement.paused) return
+
+        context.suspend()
       }
+
+      element.addEventListener('play', onPlay)
+      element.addEventListener('pause', onPause)
     }
 
     if (element.readyState >= 1) setupElement()
@@ -1158,27 +1209,30 @@ class DelayedAudio {
 
     if (!audioData) return
 
-    const { context, gainNode, bypassGain } = audioData
+    const context = this.context
+    const { source } = audioData
 
     if (this.delay > 0) {
+      if (!audioData.delayNode || audioData.delayNode.delayTime.maxValue < this.delay) {
+        const maxDelay = Math.min(120, Math.max(1, 2 ** Math.ceil(Math.log2(this.delay))))
+        const newDelayNode = context.createDelay(maxDelay)
+
+        source.disconnect()
+        if (audioData.delayNode) audioData.delayNode.disconnect()
+
+        newDelayNode.connect(context.destination)
+        source.connect(newDelayNode)
+
+        audioData.delayNode = newDelayNode
+      }
+
       audioData.delayNode.delayTime.value = this.delay
-      gainNode.gain.value = 1.0
-      bypassGain.gain.value = 0.0
-    } else {
-      gainNode.gain.value = 0.0
-
+    } else if (audioData.delayNode) {
+      source.disconnect()
       audioData.delayNode.disconnect()
-      gainNode.disconnect()
-      
-      const newDelayNode = context.createDelay(120)
-      newDelayNode.delayTime.value = 0
-      
-      gainNode.connect(newDelayNode)
-      newDelayNode.connect(context.destination)
-      
-      audioData.delayNode = newDelayNode
+      audioData.delayNode = null
 
-      bypassGain.gain.value = 1.0
+      source.connect(context.destination)
     }
   }
 

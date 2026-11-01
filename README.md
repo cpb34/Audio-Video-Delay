@@ -4,13 +4,13 @@ FOSS extension that delays audio and video for synchronized playback
 ## Privacy
 Audio/Video Delay runs locally and does not collect any user data or analytics. It is fully open-source and can be freely reviewed.
 
-## Contributions
-If this extension solves your audio issues, please consider leaving a [Google review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews), starring the GitHub repository, or [donating](https://buymeacoffee.com/cpb34). If you would like to contribute to the code, you are welcome to do so in the develop branch. Thank you!
+## Support the Project
+If this extension solves your audio syncronization issues, please consider leaving a [review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews), starring the GitHub repository, or [donating](https://ko-fi.com/cpb34). If you would like to contribute to the code, you are welcome to do so in the develop branch. Don't hesitate to open an issue for any minor or major problems you stumble upon. Thank you!
 
 ## Limitations
-- DRM-protected content can only have its audio delayed. The screen will appear black when attempting to delay DRM video.
+- This is a brute-force solution; lag spikes may occur
+- DRM-protected content can only have its audio delayed
 - Subtitles are delayed only for videos on YouTube and those using the JW Player
-- Chromium-based browsers do not report per-screen compositor framerate due to fingerprinting risks. A video on a 60hz laptop screen will be a stuttering mess when plugged into a 120hz monitor, for example. The browser only associates frame requests at the speed of the highest refresh rate display. As of now, this is not treated as a bug as it is an intentional design choice to sacrifice this absurd edge case for perfect fluidity otherwise.
 
 ## Installation Guide
 Audio/Video Delay is built for Chromium-based browsers (Brave, Chrome, Edge, etc.). You can install it through the Chrome Web Store or by manually loading it into the browser. Use the latter process if you would like to modify the code or if you just like to guarantee what is running on your computer.
@@ -20,16 +20,18 @@ Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/a
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.5.0` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
+1. Download and unzip `Audio-Video-Delay-2.6.0` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases/tag/v2.6.0)
 2. Visit the browser extensions page and turn on Developer mode
 3. Click "Load unpacked"
 4. Select the unzipped folder
 
-### Optional Font Download for Arch Linux:
-Audio/Video Delay uses the Courier New and Brush Script MT fonts, which are not standard fonts on Linux. Use command `yay -S ttf-ms-fonts` to obtain these from the AUR.
+### Optional Fonts Download for Linux:
+Audio/Video Delay uses the Courier New and Brush Script MT fonts, which are not standard on Linux. The following commands can be used to install these fonts for Arch- and Debian-based distros.
+- AUR: `yay -S ttf-ms-fonts`
+- apt: `sudo apt install ttf-mscorefonts-installer && sudo fc-cache -fv`
 
 ## Usage Guide
-For the best experience with frame-perfect playback, enable graphics acceleration in your browser and set all displays to 60fps in your computer's settings. If any display is over 60fps, frame drift may occur and the delayed video may be choppy. Only use above 60fps if your computer has a dedicated graphics card or powerful integrated graphics and can maintain a locked framerate.
+Ensure graphics acceleration is enabled in your browser settings. If you have multiple displays, set all to the same refresh rate or watch videos on the one with the highest.
 
 ### Enabling/Disabling the Extension
 Enable or disable the extension by pressing the bottom button in the GUI. The current on/off state is reflected here.
@@ -54,12 +56,11 @@ AMD GPU/iGPU users:
 Intel GPU/iGPU users:
 - Experiment with resolution settings, disabling hardware acceleration in the browser (will reduce performance but will confirm it's a GPU issue), and having multiple displays active (moving the cursor to the display not containing the video may help)
 
-## Known Bugs
-Normal Instagram post videos are inconsistent due to undetermined video caching logic
-
 ## Release Notes
 
-**v2.5.0** - Pausing changed to be immediate while maintaing the delay buffer. Removed the time-based delay for displays over 60hz; previous frame-perfect behavior now available for all displays. Fixed render bug for sites with cross-origin hosted streams. Modified video delay failure result from black video to no modification.
+**v2.6.0** - Introduced a toggle for delaying subtitles while video delay is active, patch for ThioJoe's custom subtitles, UI is now identical on Windows and Linux (custom font download from the AUR/APT still applies), buttons now trigger on cursor down, fixed infinite buffering when turning on video delay mid-video, fixed subtitles being delayed in audio mode after pause/play, delayed audio now pauses on pause and resumes on resume instead of continuing after pause
+
+**v2.5.0** - Pausing changed to be immediate while maintaing the delay buffer, removed the time-based delay for displays over 60hz; previous frame-perfect behavior now available for all displays, fixed render bug for sites with cross-origin hosted streams, modified video delay failure result from black video to no modification
 
 **v2.4.6** - Fixed Plex bug where edges weren't fully covered by modifying how video size is determined
 
