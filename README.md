@@ -5,9 +5,10 @@ FOSS extension that delays audio and video for synchronized playback
 Audio/Video Delay runs locally and does not collect any user data or analytics. It is fully open-source and can be freely reviewed.
 
 ## Support the Project
-If this extension solves your audio issues, please consider sponsoring me at [Ko-Fi](https://ko-fi.com/cpb34). Even better (and free!), leave a [Google review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews) or star the GitHub repository. Many hours went into making the experience as seamless as possible, so any way of paying it forward is greatly appreciated! If you would like to contribute to the code, you are welcome to do so in the develop branch. Thank you!
+If this extension solves your audio syncronization issues, please consider leaving a [review](https://chromewebstore.google.com/detail/audiovideo-delay/oefgkbcfnbncpbociajoehcnnmmipjmo/reviews), starring the GitHub repository, or [donating](https://ko-fi.com/cpb34). If you would like to contribute to the code, you are welcome to do so in the develop branch. Don't hesitate to open an issue for any minor or major problems you stumble upon. Thank you!
 
 ## Limitations
+- This is a brute-force solution; lag spikes may occur
 - DRM-protected content can only have its audio delayed
 - Subtitles are delayed only for videos on YouTube and those using the JW Player
 
@@ -19,7 +20,7 @@ Audio/Video Delay is available [here](https://chromewebstore.google.com/detail/a
 
 ### Load Unpacked:
 Audio/Video Delay can be manually loaded into the browser with the following steps:
-1. Download and unzip `Audio-Video-Delay-2.5.0` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases)
+1. Download and unzip `Audio-Video-Delay-2.6.0` from the latest [GitHub release](https://github.com/cpb34/Audio-Video-Delay/releases/tag/v2.6.0)
 2. Visit the browser extensions page and turn on Developer mode
 3. Click "Load unpacked"
 4. Select the unzipped folder
@@ -55,12 +56,11 @@ AMD GPU/iGPU users:
 Intel GPU/iGPU users:
 - Experiment with resolution settings, disabling hardware acceleration in the browser (will reduce performance but will confirm it's a GPU issue), and having multiple displays active (moving the cursor to the display not containing the video may help)
 
-## Known Bugs
-Normal Instagram post videos are inconsistent due to undetermined video caching logic
-
 ## Release Notes
 
-**v2.5.0** - Pausing changed to be immediate while maintaing the delay buffer. Removed the time-based delay for displays over 60hz; previous frame-perfect behavior now available for all displays. Fixed render bug for sites with cross-origin hosted streams. Modified video delay failure result from black video to no modification.
+**v2.6.0** - Introduced a toggle for delaying subtitles while video delay is active, patch for ThioJoe's custom subtitles, UI is now identical on Windows and Linux (custom font download from the AUR/APT still applies), buttons now trigger on cursor down, fixed infinite buffering when turning on video delay mid-video, fixed subtitles being delayed in audio mode after pause/play, delayed audio now pauses on pause and resumes on resume instead of continuing after pause
+
+**v2.5.0** - Pausing changed to be immediate while maintaing the delay buffer, removed the time-based delay for displays over 60hz; previous frame-perfect behavior now available for all displays, fixed render bug for sites with cross-origin hosted streams, modified video delay failure result from black video to no modification
 
 **v2.4.6** - Fixed Plex bug where edges weren't fully covered by modifying how video size is determined
 
